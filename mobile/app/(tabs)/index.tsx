@@ -36,14 +36,14 @@ export default function DashboardScreen() {
 
   function onRefresh() { setRefreshing(true); loadData(); }
 
-  function fmt(n: number) {
-    return n.toLocaleString('sr-RS', { minimumFractionDigits: 0 }) + ' RSD';
+  function fmt(n: number | undefined | null) {
+    return ((n ?? 0).toLocaleString('sr-RS', { minimumFractionDigits: 0 })) + ' RSD';
   }
 
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const monthQuotes = quotes.filter(q => new Date(q.created_at) >= monthStart).length;
-  const activeValue = quotes.filter(q => q.status === 'poslata').reduce((s, q) => s + q.total, 0);
+  const activeValue = quotes.filter(q => q.status === 'poslata').reduce((s, q) => s + (q.total ?? 0), 0);
   const recent = [...quotes].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 5);
   const isFirstRun = quotes.length === 0;
 
