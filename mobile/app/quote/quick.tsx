@@ -25,8 +25,6 @@ export default function QuickQuoteScreen() {
     setLoading(true);
     try {
       const parsedPrice = parseFloat(price);
-
-      // Generate PDF first (from local state — works even if API call is slow)
       const companyName = user?.company_name || 'Servis';
       const today = new Date().toLocaleDateString('sr-RS');
       const formattedPrice = parsedPrice.toLocaleString('sr-RS', { minimumFractionDigits: 2 }) + ' RSD';
@@ -34,73 +32,64 @@ export default function QuickQuoteScreen() {
       const descriptionVal = description.trim();
       const clientPhoneVal = clientPhone.trim();
 
+      // Simple HTML without flex/table — maximum expo-print compatibility
       const html = `<!DOCTYPE html>
 <html lang="sr">
 <head>
   <meta charset="UTF-8"/>
   <style>
-    body { font-family: Arial, sans-serif; padding: 32px; color: #1a1a2e; font-size: 14px; }
-    .header-top { margin-bottom: 24px; border-bottom: 3px solid #1a56db; padding-bottom: 16px; }
-    .company { font-size: 20px; font-weight: bold; color: #1a56db; }
-    .doc-title { font-size: 26px; font-weight: bold; color: #1a56db; text-align: right; margin-top: -28px; }
-    .doc-date { font-size: 12px; color: #777; text-align: right; margin-top: 4px; }
-    .section { background: #f7f9fc; border-left: 4px solid #1a56db; padding: 14px 16px; border-radius: 6px; margin-bottom: 20px; }
-    .section-label { font-size: 11px; text-transform: uppercase; color: #888; margin-bottom: 6px; letter-spacing: 1px; }
-    .section-value { font-size: 15px; font-weight: bold; color: #111; }
-    .section-phone { font-size: 13px; color: #555; margin-top: 4px; }
-    .items-header { background: #1a56db; color: #fff; padding: 10px 14px; border-radius: 4px 4px 0 0; }
-    .items-header-row { display: table; width: 100%; }
-    .items-header-desc { display: table-cell; font-size: 12px; font-weight: bold; text-transform: uppercase; width: 70%; }
-    .items-header-amount { display: table-cell; font-size: 12px; font-weight: bold; text-transform: uppercase; text-align: right; width: 30%; }
-    .item-row { display: table; width: 100%; padding: 12px 14px; background: #f7f9fc; border: 1px solid #e8ecf0; border-top: none; }
-    .item-desc { display: table-cell; font-size: 14px; width: 70%; }
-    .item-amount { display: table-cell; font-size: 14px; text-align: right; width: 30%; }
-    .total-row { background: #1a56db; color: #fff; padding: 14px; border-radius: 0 0 4px 4px; display: table; width: 100%; margin-bottom: 24px; }
-    .total-label { display: table-cell; font-size: 14px; font-weight: bold; width: 70%; }
-    .total-value { display: table-cell; font-size: 16px; font-weight: bold; text-align: right; width: 30%; }
-    .footer { margin-top: 32px; text-align: center; font-size: 11px; color: #aaa; border-top: 1px solid #e8ecf0; padding-top: 14px; }
+    body { font-family: Arial, sans-serif; padding: 30px; color: #1a1a2e; font-size: 14px; }
+    h1 { font-size: 26px; color: #1a56db; margin: 0; }
+    .company { font-size: 18px; font-weight: bold; color: #1a56db; }
+    .date { font-size: 12px; color: #777; margin-top: 4px; }
+    hr { border: none; border-top: 3px solid #1a56db; margin: 16px 0; }
+    .block { background: #f7f9fc; border-left: 4px solid #1a56db; padding: 12px 14px; margin-bottom: 16px; }
+    .block-label { font-size: 11px; text-transform: uppercase; color: #888; margin-bottom: 4px; letter-spacing: 1px; }
+    .block-value { font-size: 15px; font-weight: bold; }
+    .block-sub { font-size: 13px; color: #555; margin-top: 4px; }
+    .item-box { border: 1px solid #e8ecf0; padding: 12px 14px; margin-bottom: 4px; background: #fafafa; }
+    .item-name { font-size: 14px; color: #111; }
+    .item-price { font-size: 13px; color: #555; margin-top: 4px; }
+    .total-box { background: #1a56db; color: #fff; padding: 14px; margin-top: 4px; }
+    .total-label { font-size: 13px; }
+    .total-value { font-size: 20px; font-weight: bold; margin-top: 4px; }
+    .footer { margin-top: 32px; font-size: 11px; color: #aaa; text-align: center; border-top: 1px solid #e8ecf0; padding-top: 12px; }
   </style>
 </head>
 <body>
-  <div class="header-top">
-    <div class="company">${companyName}</div>
-    <div class="doc-title">PONUDA</div>
-    <div class="doc-date">Datum: ${today}</div>
+  <div class="company">${companyName}</div>
+  <h1>PONUDA</h1>
+  <div class="date">Datum: ${today}</div>
+  <hr/>
+
+  <div class="block">
+    <div class="block-label">Klijent</div>
+    <div class="block-value">${clientNameVal}</div>
+    ${clientPhoneVal ? `<div class="block-sub">Tel: ${clientPhoneVal}</div>` : ''}
   </div>
 
-  <div class="section">
-    <div class="section-label">Klijent</div>
-    <div class="section-value">${clientNameVal}</div>
-    ${clientPhoneVal ? `<div class="section-phone">Tel: ${clientPhoneVal}</div>` : ''}
+  <div class="block-label" style="margin-bottom:8px;">Opis usluge</div>
+  <div class="item-box">
+    <div class="item-name">${descriptionVal}</div>
+    <div class="item-price">Iznos: ${formattedPrice}</div>
   </div>
-
-  <div class="items-header">
-    <div class="items-header-row">
-      <span class="items-header-desc">Opis usluge</span>
-      <span class="items-header-amount">Iznos</span>
-    </div>
-  </div>
-  <div class="item-row">
-    <span class="item-desc">${descriptionVal}</span>
-    <span class="item-amount">${formattedPrice}</span>
-  </div>
-  <div class="total-row">
-    <span class="total-label">UKUPNO ZA UPLATU:</span>
-    <span class="total-value">${formattedPrice}</span>
+  <div class="total-box">
+    <div class="total-label">UKUPNO ZA UPLATU:</div>
+    <div class="total-value">${formattedPrice}</div>
   </div>
 
   <div class="footer">Dokument generisan automatski &middot; ${companyName}</div>
 </body>
 </html>`;
 
-      // Save to backend (fire but don't block PDF sharing)
+      // Fire API call (non-blocking for PDF)
       const apiPromise = quickQuote({
         client_name: clientNameVal,
         client_phone: clientPhoneVal || undefined,
         description: descriptionVal,
         price: parsedPrice,
       }).catch(err => {
-        console.warn('Quick quote API error (non-fatal):', err.message);
+        console.warn('Quick quote API error:', err.message);
         return null;
       });
 
@@ -112,7 +101,6 @@ export default function QuickQuoteScreen() {
         UTI: 'com.adobe.pdf',
       });
 
-      // Navigate after sharing
       const result = await apiPromise;
       if (result?.quote_id) {
         router.replace(`/quote/${result.quote_id}`);

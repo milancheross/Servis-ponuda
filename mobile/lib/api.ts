@@ -22,7 +22,7 @@ export async function clearToken(): Promise<void> {
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface User {
-  id: number;
+  id: string;
   email: string;
   company_name: string;
   phone?: string;
@@ -33,7 +33,7 @@ export interface User {
 }
 
 export interface Client {
-  id: number;
+  id: string;
   name: string;
   phone?: string;
   email?: string;
@@ -42,7 +42,7 @@ export interface Client {
 }
 
 export interface PriceItem {
-  id: number;
+  id: string;
   name: string;
   unit: string;
   price: number;
@@ -50,11 +50,11 @@ export interface PriceItem {
   created_at: string;
 }
 
-export type QuoteStatus = 'nacrt' | 'poslata' | 'prihvacena' | 'odbijena';
+export type QuoteStatus = 'nacrt' | 'poslata' | 'prihvacena' | 'odbijena' | 'draft' | 'sent' | 'accepted' | 'declined';
 
 export interface QuoteItem {
-  id?: number;
-  price_item_id?: number;
+  id?: string;
+  price_item_id?: string;
   name: string;
   unit: string;
   quantity: number;
@@ -63,8 +63,8 @@ export interface QuoteItem {
 }
 
 export interface Quote {
-  id: number;
-  client_id: number;
+  id: string;
+  client_id: string;
   client?: Client;
   status: QuoteStatus;
   items: QuoteItem[];
@@ -77,17 +77,17 @@ export interface Quote {
   sent_at?: string;
   opened_at?: string;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
 }
 
-export type InvoiceStatus = 'neplaceno' | 'placeno';
+export type InvoiceStatus = 'neplaceno' | 'placeno' | 'unpaid' | 'paid';
 
 export interface Invoice {
-  id: number;
+  id: string;
   invoice_number: string;
-  quote_id: number;
+  quote_id?: string;
   quote?: Quote;
-  client_id: number;
+  client_id: string;
   client?: Client;
   status: InvoiceStatus;
   items: QuoteItem[];
@@ -133,7 +133,7 @@ export interface CreatePriceItemData {
 }
 
 export interface CreateQuoteData {
-  client_id: number;
+  client_id: string;
   items: Omit<QuoteItem, 'id' | 'total'>[];
   discount_percent?: number;
   valid_until?: string;
@@ -169,14 +169,13 @@ export async function apiFetch<T = unknown>(
     let message = `HTTP ${response.status}`;
     try {
       const body = await response.json();
-      message = body?.message ?? message;
+      message = body?.error ?? body?.message ?? message;
     } catch {
       // ignore parse errors
     }
     throw new Error(message);
   }
 
-  // 204 No Content
   if (response.status === 204) {
     return undefined as T;
   }
@@ -234,7 +233,7 @@ export async function createClient(data: CreateClientData): Promise<Client> {
 }
 
 export async function updateClient(
-  id: number,
+  id: string,
   data: Partial<CreateClientData>,
 ): Promise<Client> {
   const res = await apiFetch<{ client: Client }>(`/clients/${id}`, {
@@ -244,7 +243,7 @@ export async function updateClient(
   return res.client;
 }
 
-export async function deleteClient(id: number): Promise<void> {
+export async function deleteClient(id: string): Promise<void> {
   return apiFetch(`/clients/${id}`, { method: 'DELETE' });
 }
 
@@ -266,7 +265,7 @@ export async function createPriceItem(
 }
 
 export async function updatePriceItem(
-  id: number,
+  id: string,
   data: Partial<CreatePriceItemData>,
 ): Promise<PriceItem> {
   const res = await apiFetch<{ price_item: PriceItem }>(`/price-items/${id}`, {
@@ -276,7 +275,7 @@ export async function updatePriceItem(
   return res.price_item;
 }
 
-export async function deletePriceItem(id: number): Promise<void> {
+export async function deletePriceItem(id: string): Promise<void> {
   return apiFetch(`/price-items/${id}`, { method: 'DELETE' });
 }
 
@@ -287,7 +286,7 @@ export async function getQuotes(): Promise<Quote[]> {
   return data.quotes;
 }
 
-export async function getQuote(id: number): Promise<Quote> {
+export async function getQuote(id: string | number): Promise<Quote> {
   const data = await apiFetch<{ quote: Quote }>(`/quotes/${id}`);
   return data.quote;
 }
@@ -301,7 +300,7 @@ export async function createQuote(data: CreateQuoteData): Promise<Quote> {
 }
 
 export async function updateQuote(
-  id: number,
+  id: string,
   data: Partial<CreateQuoteData>,
 ): Promise<Quote> {
   const res = await apiFetch<{ quote: Quote }>(`/quotes/${id}`, {
@@ -311,13 +310,13 @@ export async function updateQuote(
   return res.quote;
 }
 
-export async function sendQuote(id: number): Promise<Quote> {
+export async function sendQuote(id: string): Promise<Quote> {
   const res = await apiFetch<{ quote: Quote }>(`/quotes/${id}/send`, { method: 'POST' });
   return res.quote;
 }
 
-export async function convertToInvoice(id: number): Promise<Invoice> {
-  const res = await apiFetch<{ invoice: Invoice }>(`/quotes/${id}/convert`, { method: 'POST' });
+export async function convertToInvoice(id: string): Promise<Invoice> {
+  const res = await apiFetch<{ invoice: Invoice }>(`/quotes/${id}/convert-to-invoice`, { method: 'POST' });
   return res.invoice;
 }
 
@@ -328,12 +327,12 @@ export async function getInvoices(): Promise<Invoice[]> {
   return data.invoices;
 }
 
-export async function getInvoice(id: number): Promise<Invoice> {
+export async function getInvoice(id: string): Promise<Invoice> {
   const data = await apiFetch<{ invoice: Invoice }>(`/invoices/${id}`);
   return data.invoice;
 }
 
-export async function markPaid(id: number): Promise<Invoice> {
+export async function markPaid(id: string): Promise<Invoice> {
   return apiFetch(`/invoices/${id}/pay`, { method: 'POST' });
 }
 
@@ -347,10 +346,10 @@ export interface QuickQuoteData {
 }
 
 export interface QuickQuoteResult {
-  quote_id: number;
+  quote_id: string;
   tracking_url: string;
   tracking_token: string;
-  client_id: number;
+  client_id: string;
 }
 
 export async function quickQuote(data: QuickQuoteData): Promise<QuickQuoteResult> {

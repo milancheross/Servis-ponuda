@@ -23,13 +23,14 @@ export default function QuoteDetailScreen() {
 
   const loadQuote = useCallback(async () => {
     try {
-      const q = await getQuote(Number(id));
+      // Pass id directly as string — UUIDs must not be converted to Number
+      const q = await getQuote(id);
       setQuote(q);
       if (q.client) {
         setClient(q.client);
-      } else {
+      } else if (q.client_id) {
         const clients = await getClients();
-        setClient(clients.find(c => c.id === q.client_id) || null);
+        setClient(clients.find(c => String(c.id) === String(q.client_id)) || null);
       }
     } catch (err: any) {
       Alert.alert('Greška', err.message);
@@ -137,6 +138,8 @@ export default function QuoteDetailScreen() {
   }
 
   const disc = quote.discount_percent || 0;
+  const total = quote.total ?? 0;
+  const subtotal = quote.subtotal ?? total;
 
   return (
     <View style={styles.container}>
@@ -144,10 +147,10 @@ export default function QuoteDetailScreen() {
         {/* Header Card */}
         <View style={styles.headerCard}>
           <View style={styles.headerTop}>
-            <Text style={styles.quoteNum}>Ponuda #{String(quote.id).padStart(4, '0')}</Text>
+            <Text style={styles.quoteNum}>Ponuda #{String(quote.id).slice(0, 8)}</Text>
             <StatusBadge status={quote.status} />
           </View>
-          <Text style={styles.totalAmount}>{quote.total.toLocaleString('sr-RS')} RSD</Text>
+          <Text style={styles.totalAmount}>{total.toLocaleString('sr-RS')} RSD</Text>
           <Text style={styles.headerDate}>
             Kreirano: {new Date(quote.created_at).toLocaleDateString('sr-RS')}
             {quote.sent_at ? ` • Poslato: ${new Date(quote.sent_at).toLocaleDateString('sr-RS')}` : ''}
@@ -171,26 +174,26 @@ export default function QuoteDetailScreen() {
         {/* Items */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Stavke</Text>
-          {quote.items.map((item, idx) => (
+          {(quote.items || []).map((item, idx) => (
             <QuoteItemRow key={idx} item={item} index={idx} readOnly />
           ))}
 
           <View style={styles.totalsSection}>
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Osnovica:</Text>
-              <Text style={styles.totalValue}>{quote.subtotal.toLocaleString('sr-RS')} RSD</Text>
+              <Text style={styles.totalValue}>{subtotal.toLocaleString('sr-RS')} RSD</Text>
             </View>
             {disc > 0 && (
               <View style={styles.totalRow}>
                 <Text style={[styles.totalLabel, { color: '#ef4444' }]}>Popust ({disc}%):</Text>
                 <Text style={[styles.totalValue, { color: '#ef4444' }]}>
-                  -{(quote.subtotal * disc / 100).toLocaleString('sr-RS')} RSD
+                  -{(subtotal * disc / 100).toLocaleString('sr-RS')} RSD
                 </Text>
               </View>
             )}
             <View style={[styles.totalRow, styles.grandTotalRow]}>
               <Text style={styles.grandTotalLabel}>UKUPNO:</Text>
-              <Text style={styles.grandTotalValue}>{quote.total.toLocaleString('sr-RS')} RSD</Text>
+              <Text style={styles.grandTotalValue}>{total.toLocaleString('sr-RS')} RSD</Text>
             </View>
           </View>
         </View>
@@ -234,17 +237,15 @@ export default function QuoteDetailScreen() {
             </TouchableOpacity>
           )}
           {jobId && (
-            <TouchableOpacity style={jobStyles.viewJobBtn} onPress={() => router.push(`/job/${jobId}`)}>
+            <TouchableOpacity style={jobStyles.viewJobBtn} onPress={() => router.push(`/job/${jobId}`)}
+            >
               <Text style={jobStyles.viewJobBtnText}>Vidi posao</Text>
             </TouchableOpacity>
           )}
 
-          {quote.status === 'nacrt' && (
+          {(quote.status === 'nacrt' || quote.status === 'draft') && (
             <>
-              <TouchableOpacity
-                style={styles.actionBtn}
-                onPress={() => router.push(`/quote/new`)}
-              >
+              <TouchableOpacity style={styles.actionBtn} onPress={() => router.push(`/quote/new`)}>
                 <Text style={styles.actionBtnText}>✏️ Uredi</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -258,17 +259,15 @@ export default function QuoteDetailScreen() {
             </>
           )}
 
-          {quote.status === 'poslata' && (
-            <>
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.primaryBtn, actionLoading && styles.disabledBtn]}
-                onPress={handleConvert}
-                disabled={actionLoading}
-              >
-                {actionLoading ? <ActivityIndicator color="#fff" size="small" /> :
-                  <Text style={[styles.actionBtnText, styles.primaryBtnText]}>🧾 Konvertuj u fakturu</Text>}
-              </TouchableOpacity>
-            </>
+          {(quote.status === 'poslata' || quote.status === 'sent') && (
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.primaryBtn, actionLoading && styles.disabledBtn]}
+              onPress={handleConvert}
+              disabled={actionLoading}
+            >
+              {actionLoading ? <ActivityIndicator color="#fff" size="small" /> :
+                <Text style={[styles.actionBtnText, styles.primaryBtnText]}>🧾 Konvertuj u fakturu</Text>}
+            </TouchableOpacity>
           )}
 
           <TouchableOpacity style={[styles.actionBtn, styles.pdfBtn]} onPress={handleSharePDF}>
@@ -285,9 +284,7 @@ const styles = StyleSheet.create({
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   errorText: { fontSize: 16, color: '#9ca3af' },
   scroll: { padding: 16, paddingBottom: 40 },
-  headerCard: {
-    backgroundColor: '#1e3a8a', borderRadius: 16, padding: 20, marginBottom: 12,
-  },
+  headerCard: { backgroundColor: '#1e3a8a', borderRadius: 16, padding: 20, marginBottom: 12 },
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   quoteNum: { fontSize: 14, fontWeight: '700', color: '#93c5fd' },
   totalAmount: { fontSize: 32, fontWeight: '800', color: '#fff', marginBottom: 6 },
@@ -309,9 +306,7 @@ const styles = StyleSheet.create({
   grandTotalValue: { fontSize: 18, fontWeight: '800', color: '#2563EB' },
   metaText: { fontSize: 13, color: '#374151', marginBottom: 4 },
   actionsCard: { gap: 10 },
-  actionBtn: {
-    backgroundColor: '#f3f4f6', borderRadius: 10, paddingVertical: 14, alignItems: 'center',
-  },
+  actionBtn: { backgroundColor: '#f3f4f6', borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
   actionBtnText: { fontSize: 15, fontWeight: '600', color: '#374151' },
   primaryBtn: { backgroundColor: '#2563EB' },
   primaryBtnText: { color: '#fff' },
