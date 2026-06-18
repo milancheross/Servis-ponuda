@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ScrollView, Alert, ActivityIndicator, Share, KeyboardAvoidingView, Platform,
+  ScrollView, Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { quickQuote } from '../../lib/api';
+import { useAuth } from '../../lib/auth';
 
 export default function QuickQuoteScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('');
   const [description, setDescription] = useState('');
@@ -20,17 +24,72 @@ export default function QuickQuoteScreen() {
     if (!canSubmit) return;
     setLoading(true);
     try {
+      const parsedPrice = parseFloat(price);
       const result = await quickQuote({
         client_name: clientName.trim(),
         client_phone: clientPhone.trim() || undefined,
         description: description.trim(),
-        price: parseFloat(price),
+        price: parsedPrice,
       });
 
-      // Open native share sheet immediately
-      await Share.share({
-        message: `Pozdrav! Šaljem vam ponudu.\n\nPogledajte i prihvatite ovde:\n${result.tracking_url}`,
-        url: result.tracking_url,
+      // Generate PDF and share
+      const companyName = user?.company_name || 'Servis';
+      const today = new Date().toLocaleDateString('sr-RS');
+      const formattedPrice = parsedPrice.toLocaleString('sr-RS', { minimumFractionDigits: 2 }) + ' RSD';
+
+      const html = `<!DOCTYPE html>
+<html lang="sr">
+<head>
+  <meta charset="UTF-8"/>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 40px; color: #1a1a2e; }
+    .header { border-bottom: 3px solid #1a56db; padding-bottom: 20px; margin-bottom: 24px; display: flex; justify-content: space-between; }
+    .company { font-size: 22px; font-weight: 700; color: #1a56db; }
+    .title { font-size: 28px; font-weight: 800; color: #1a56db; text-align: right; }
+    .date { font-size: 12px; color: #777; text-align: right; }
+    .section { background: #f7f9fc; border-left: 4px solid #1a56db; padding: 16px; border-radius: 8px; margin-bottom: 16px; }
+    .label { font-size: 11px; text-transform: uppercase; color: #888; margin-bottom: 6px; }
+    .value { font-size: 14px; font-weight: 600; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    thead { background: #1a56db; color: #fff; }
+    th { padding: 10px 12px; text-align: left; font-size: 12px; }
+    td { padding: 10px 12px; border-bottom: 1px solid #e8ecf0; }
+    .total-row { background: #1a56db; color: #fff; font-weight: 700; font-size: 16px; }
+    .total-row td { padding: 14px 12px; }
+    .footer { margin-top: 32px; text-align: center; font-size: 11px; color: #aaa; border-top: 1px solid #e8ecf0; padding-top: 16px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="company">${companyName}</div>
+    <div>
+      <div class="title">PONUDA</div>
+      <div class="date">Datum: ${today}</div>
+    </div>
+  </div>
+  <div class="section">
+    <div class="label">Klijent</div>
+    <div class="value">${clientName.trim()}</div>
+    ${clientPhone ? `<div style="font-size:13px;margin-top:4px">📞 ${clientPhone.trim()}</div>` : ''}
+  </div>
+  <table>
+    <thead><tr><th>Opis usluge</th><th style="text-align:right">Iznos</th></tr></thead>
+    <tbody>
+      <tr><td>${description.trim()}</td><td style="text-align:right">${formattedPrice}</td></tr>
+    </tbody>
+    <tfoot>
+      <tr class="total-row"><td>UKUPNO ZA UPLATU:</td><td style="text-align:right">${formattedPrice}</td></tr>
+    </tfoot>
+  </table>
+  <div class="footer">Dokument generisan automatski · ${companyName}</div>
+</body>
+</html>`;
+
+      const { uri } = await Print.printToFileAsync({ html });
+      await Sharing.shareAsync(uri, {
+        mimeType: 'application/pdf',
+        dialogTitle: `Ponuda — ${clientName.trim()}`,
+        UTI: 'com.adobe.pdf',
       });
 
       router.replace(`/quote/${result.quote_id}`);
@@ -122,7 +181,7 @@ export default function QuickQuoteScreen() {
           ) : (
             <>
               <Text style={styles.submitBtnText}>Kreiraj i pošalji ponudu</Text>
-              <Text style={styles.submitBtnSub}>Otvara Viber / WhatsApp / email</Text>
+              <Text style={styles.submitBtnSub}>Generiše PDF → Viber / WhatsApp / email</Text>
             </>
           )}
         </TouchableOpacity>
