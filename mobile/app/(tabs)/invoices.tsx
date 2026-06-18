@@ -68,7 +68,7 @@ export default function InvoicesScreen() {
                 Izdato: {new Date(item.issued_at).toLocaleDateString('sr-RS')}
                 {item.due_at ? ` • Rok: ${new Date(item.due_at).toLocaleDateString('sr-RS')}` : ''}
               </Text>
-              <Text style={styles.total}>{item.total.toLocaleString('sr-RS')} RSD</Text>
+              <Text style={styles.total}>{(item.total ?? 0).toLocaleString('sr-RS')} RSD</Text>
             </View>
           </TouchableOpacity>
         )}
@@ -80,21 +80,21 @@ export default function InvoicesScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f0f4ff' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  filterBar: { flexDirection: 'row', backgroundColor: '#fff', padding: 12, gap: 8 },
-  filterTab: { flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: 'center', backgroundColor: '#f3f4f6' },
+  filterBar: { backgroundColor: '#fff', paddingVertical: 12, paddingHorizontal: 16, flexDirection: 'row', gap: 8 },
+  filterTab: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f3f4f6' },
   filterTabActive: { backgroundColor: '#2563EB' },
   filterText: { fontSize: 13, fontWeight: '600', color: '#6b7280' },
   filterTextActive: { color: '#fff' },
-  list: { padding: 16, paddingBottom: 32 },
+  list: { padding: 16, paddingBottom: 100 },
   emptyContainer: { flex: 1, padding: 16 },
   card: {
     backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 8,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
   },
-  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
-  invoiceNum: { fontSize: 12, fontWeight: '700', color: '#2563EB', marginBottom: 2 },
+  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  invoiceNum: { fontSize: 12, color: '#6b7280', marginBottom: 2 },
   clientName: { fontSize: 15, fontWeight: '600', color: '#111827' },
   cardBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  date: { fontSize: 12, color: '#9ca3af', flex: 1 },
+  date: { fontSize: 12, color: '#9ca3af', flex: 1, marginRight: 8 },
   total: { fontSize: 16, fontWeight: '700', color: '#1e3a8a' },
 });

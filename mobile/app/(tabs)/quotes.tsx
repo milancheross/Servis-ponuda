@@ -69,7 +69,7 @@ export default function QuotesScreen() {
             </View>
             <View style={styles.cardBottom}>
               <Text style={styles.date}>{new Date(item.created_at).toLocaleDateString('sr-RS')}</Text>
-              <Text style={styles.total}>{item.total.toLocaleString('sr-RS')} RSD</Text>
+              <Text style={styles.total}>{(item.total ?? 0).toLocaleString('sr-RS')} RSD</Text>
             </View>
           </TouchableOpacity>
         )}
