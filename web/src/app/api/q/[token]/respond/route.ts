@@ -1,39 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
-export async function POST(req: NextRequest, { params }: { params: { token: string } }) {
-  try {
-    const { action, signed_by, signature_data } = await req.json()
-    if (!action || !signed_by?.trim()) {
-      return NextResponse.json({ error: 'Ime i potpis su obavezni' }, { status: 400 })
-    }
-    if (action !== 'prihvacena' && action !== 'odbijena') {
-      return NextResponse.json({ error: 'Nevalidan action' }, { status: 400 })
-    }
+export const runtime = 'nodejs'
 
-    const ip =
-      req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
-      req.headers.get('x-real-ip') ||
-      'nepoznat'
+export async function POST(req: NextRequest, ctx: { params: { token: string } }) {
+  const { token } = ctx.params
+  const { action, signed_by, signature_data } = await req.json()
 
-    const updateData: Record<string, any> = { status: action }
-    if (action === 'prihvacena') {
-      updateData.signed_by = signed_by.trim()
-      updateData.signed_at = new Date().toISOString()
-      updateData.signed_ip = ip
-      if (signature_data) updateData.signature_data = signature_data
-    }
-
-    const { data, error } = await supabase
-      .from('quotes')
-      .update(updateData)
-      .eq('tracking_token', params.token)
-      .select()
-      .single()
-
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json({ quote: data })
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
+  if (!['prihvacena', 'odbijena'].includes(action)) {
+    return NextResponse.json({ error: 'Nevažeća akcija' }, { status: 400 })
   }
+
+  const { data: quote, error: fetchErr } = await supabase
+    .from('quotes')
+    .select('id, status')
+    .eq('tracking_token', token)
+    .single()
+
+  if (fetchErr || !quote) {
+    return NextResponse.json({ error: 'Ponuda nije pronađena' }, { status: 404 })
+  }
+
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || null
+
+  const updates: any = { status: action }
+  if (action === 'prihvacena') {
+    updates.signed_by = signed_by || null
+    updates.signed_at = new Date().toISOString()
+    updates.signed_ip = ip
+    updates.signature_data = signature_data || null
+  }
+
+  const { error } = await supabase.from('quotes').update(updates).eq('id', quote.id)
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  return NextResponse.json({ success: true })
 }

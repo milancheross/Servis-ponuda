@@ -1,23 +1,24 @@
 import { supabase } from '@/lib/supabase'
 import { withAuth, ok, err } from '@/lib/api-helpers'
 
-export const POST = withAuth(async (_req, userId, { params }) => {
+export const runtime = 'nodejs'
+
+export const POST = withAuth(async (_req, userId, ctx) => {
+  const { id } = ctx.params
+
   const { data: quote, error: qErr } = await supabase
     .from('quotes')
-    .select('*, items:quote_items(*)')
-    .eq('id', params.id)
+    .select('*')
+    .eq('id', id)
     .eq('user_id', userId)
     .single()
-  if (qErr) return err('Ponuda nije pronadjena', 404)
+  if (qErr) return err(qErr.message, 404)
 
+  const { count } = await supabase.from('invoices').select('id', { count: 'exact', head: true }).eq('user_id', userId)
   const year = new Date().getFullYear()
-  const { count } = await supabase
-    .from('invoices')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', userId)
-  const invoiceNumber = `${year}-${String((count || 0) + 1).padStart(4, '0')}`
-
-  const issuedDate = new Date().toISOString().split('T')[0] // date type expects YYYY-MM-DD
+  const num = String((count || 0) + 1).padStart(3, '0')
+  const invoice_number = `FA-${year}-${num}`
+  const issued_at = new Date().toISOString().split('T')[0]
 
   const { data: invoice, error: iErr } = await supabase
     .from('invoices')
@@ -25,18 +26,16 @@ export const POST = withAuth(async (_req, userId, { params }) => {
       user_id: userId,
       client_id: quote.client_id,
       quote_id: quote.id,
-      invoice_number: invoiceNumber,
+      invoice_number,
       status: 'neplaceno',
       total_amount: quote.total_amount,
-      issued_at: issuedDate,
+      issued_at,
     })
     .select()
     .single()
   if (iErr) return err(iErr.message, 500)
 
-  // items stay in quote_items linked via quote_id — no invoice_id column exists
+  await supabase.from('quotes').update({ status: 'prihvacena' }).eq('id', id).eq('user_id', userId)
 
-  await supabase.from('quotes').update({ status: 'prihvacena' }).eq('id', quote.id)
-
-  return ok({ invoice: { ...invoice, total: invoice.total_amount } }, 201)
+  return ok(invoice, 201)
 })

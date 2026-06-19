@@ -1,49 +1,42 @@
-import { renderToBuffer } from '@react-pdf/renderer'
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-import { verifyToken } from '@/lib/auth'
+import { withAuth } from '@/lib/api-helpers'
 import { buildQuotePdf } from '@/lib/pdf-template'
+import { renderToBuffer } from '@react-pdf/renderer'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const token = req.cookies.get('sp_token')?.value
-  if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const payload = await verifyToken(token)
-  if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+export const GET = withAuth(async (_req: NextRequest, userId: string, ctx) => {
+  const { id } = ctx.params
 
   const { data: quote, error } = await supabase
     .from('quotes')
-    .select('*, client:clients(id,name,phone,email,address), items:quote_items(*)')
-    .eq('id', params.id)
-    .eq('user_id', payload.userId)
+    .select('*, client:clients(name, phone, email, address)')
+    .eq('id', id)
+    .eq('user_id', userId)
     .single()
-  if (error || !quote) return NextResponse.json({ error: 'Nije pronadjeno' }, { status: 404 })
+  if (error) return NextResponse.json({ error: error.message }, { status: 404 })
 
-  const { data: user } = await supabase.from('users').select('company_name,address,phone').eq('id', payload.userId).single()
+  const { data: user } = await supabase.from('users').select('company_name, address, phone, pib').eq('id', userId).single()
+  const { data: items } = await supabase.from('quote_items').select('*').eq('quote_id', id)
 
   const buffer = await renderToBuffer(buildQuotePdf({
-    type: 'ponuda',
-    number: quote.quote_number,
+    type: 'quote',
+    number: quote.quote_number || quote.id,
     date: new Date(quote.created_at).toLocaleDateString('sr-RS'),
-    companyName: user?.company_name || 'Firma',
-    companyAddress: user?.address,
-    companyPhone: user?.phone,
-    client: quote.client || { name: 'Nepoznat' },
-    items: (quote.items || []).map((i: any) => ({
-      name: i.name, unit: i.unit,
-      quantity: Number(i.quantity), price: Number(i.price), total: Number(i.total),
-    })),
-    total: Number(quote.total_amount),
-    discountPercent: quote.discount_percent ? Number(quote.discount_percent) : undefined,
+    company: { name: user?.company_name || 'Firma', address: user?.address, phone: user?.phone, pib: user?.pib },
+    client: quote.client || { name: 'Klijent' },
+    items: (items || []).map((i: any) => ({ name: i.name, unit: i.unit, quantity: i.quantity, price: i.price, total: i.total })),
+    total: quote.total_amount,
+    discountPercent: quote.discount_percent,
     note: quote.note,
   }))
 
   return new NextResponse(new Uint8Array(buffer), {
     headers: {
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="ponuda-${quote.quote_number || params.id.slice(0, 8)}.pdf"`,
+      'Content-Disposition': `attachment; filename="ponuda-${quote.quote_number || id}.pdf"`,
     },
   })
-}
+})

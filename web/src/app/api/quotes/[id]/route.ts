@@ -1,40 +1,49 @@
 import { supabase } from '@/lib/supabase'
 import { withAuth, ok, err } from '@/lib/api-helpers'
 
-export const GET = withAuth(async (_req, userId, { params }) => {
-  const { data, error } = await supabase
+export const runtime = 'nodejs'
+
+export const GET = withAuth(async (_req, userId, ctx) => {
+  const { id } = ctx.params
+  const { data: quote, error } = await supabase
     .from('quotes')
-    .select('*, client:clients(id,name,phone,email,address), items:quote_items(*)')
-    .eq('id', params.id)
+    .select('*, client:clients(id, name, phone, email, address)')
+    .eq('id', id)
     .eq('user_id', userId)
     .single()
-  if (error) return err('Nije pronadjeno', 404)
-  return ok({ quote: { ...data, total: data.total_amount, subtotal: data.total_amount / (1 - (data.discount_percent || 0) / 100) } })
+  if (error) return err(error.message, 404)
+
+  const { data: items } = await supabase
+    .from('quote_items')
+    .select('*')
+    .eq('quote_id', id)
+    .order('created_at')
+
+  return ok({ ...quote, total: quote.total_amount, items: items || [] })
 })
 
-export const PUT = withAuth(async (req, userId, { params }) => {
+export const PUT = withAuth(async (req, userId, ctx) => {
+  const { id } = ctx.params
   const body = await req.json()
-  // only update allowed columns
-  const allowed = ['status', 'note', 'valid_until', 'discount_percent', 'total_amount', 'sent_at', 'opened_at']
-  const update: Record<string, any> = {}
-  for (const key of allowed) if (key in body) update[key] = body[key]
+  const allowed = ['status', 'note', 'valid_until', 'discount_percent', 'total_amount', 'sent_at', 'opened_at', 'signed_by', 'signed_at', 'signed_ip', 'signature_data']
+  const updates: Record<string, any> = {}
+  for (const key of allowed) {
+    if (key in body) updates[key] = body[key]
+  }
   const { data, error } = await supabase
     .from('quotes')
-    .update(update)
-    .eq('id', params.id)
+    .update(updates)
+    .eq('id', id)
     .eq('user_id', userId)
     .select()
     .single()
   if (error) return err(error.message, 500)
-  return ok({ quote: { ...data, total: data.total_amount } })
+  return ok({ ...data, total: data.total_amount })
 })
 
-export const DELETE = withAuth(async (_req, userId, { params }) => {
-  const { error } = await supabase
-    .from('quotes')
-    .delete()
-    .eq('id', params.id)
-    .eq('user_id', userId)
+export const DELETE = withAuth(async (_req, userId, ctx) => {
+  const { id } = ctx.params
+  const { error } = await supabase.from('quotes').delete().eq('id', id).eq('user_id', userId)
   if (error) return err(error.message, 500)
   return ok({ success: true })
 })

@@ -1,113 +1,123 @@
 import React from 'react'
-import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
-import type { DocumentProps } from '@react-pdf/renderer'
+import { Document, Page, Text, View, StyleSheet, DocumentProps } from '@react-pdf/renderer'
 
 const styles = StyleSheet.create({
-  page: { fontFamily: 'Helvetica', fontSize: 10, padding: 40, color: '#1a1a1a' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 32 },
-  companyName: { fontSize: 18, fontFamily: 'Helvetica-Bold', color: '#1e3a8a' },
-  companyMeta: { fontSize: 9, color: '#6b7280', marginTop: 2 },
-  badgeWrap: { alignItems: 'flex-end' },
-  badge: { backgroundColor: '#1e3a8a', color: 'white', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 4, fontSize: 10, fontFamily: 'Helvetica-Bold' },
-  dateTxt: { fontSize: 9, color: '#6b7280', marginTop: 6, textAlign: 'right' },
+  page: { fontFamily: 'Helvetica', padding: 40, fontSize: 10, color: '#1a1a1a' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 30 },
+  company: { fontSize: 18, fontFamily: 'Helvetica-Bold', color: '#1e3a8a' },
+  companyDetail: { fontSize: 9, color: '#555', marginTop: 2 },
+  docTitle: { fontSize: 22, fontFamily: 'Helvetica-Bold', color: '#1e3a8a', textAlign: 'right' },
+  docNumber: { fontSize: 11, color: '#555', textAlign: 'right', marginTop: 4 },
   section: { marginBottom: 16 },
-  label: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#2563eb', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },
-  clientName: { fontSize: 12, fontFamily: 'Helvetica-Bold' },
-  clientMeta: { fontSize: 9, color: '#6b7280', marginTop: 2 },
-  tableHeader: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#e5e7eb', paddingBottom: 6, marginBottom: 4, fontFamily: 'Helvetica-Bold', fontSize: 9, color: '#6b7280' },
-  tableRow: { flexDirection: 'row', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  sectionTitle: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: '#888', textTransform: 'uppercase', marginBottom: 4 },
+  clientName: { fontSize: 13, fontFamily: 'Helvetica-Bold' },
+  clientDetail: { fontSize: 9, color: '#555', marginTop: 2 },
+  tableHeader: { flexDirection: 'row', backgroundColor: '#1e3a8a', color: 'white', padding: '6 8', borderRadius: 4 },
+  tableRow: { flexDirection: 'row', padding: '6 8', borderBottomWidth: 1, borderBottomColor: '#eee' },
   col1: { flex: 3 },
-  col2: { flex: 1, textAlign: 'center' },
+  col2: { flex: 1, textAlign: 'right' },
   col3: { flex: 1, textAlign: 'right' },
-  totalBox: { backgroundColor: '#f9fafb', borderRadius: 6, padding: 12, marginTop: 16 },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4, fontSize: 9, color: '#6b7280' },
-  totalFinal: { flexDirection: 'row', justifyContent: 'space-between', fontFamily: 'Helvetica-Bold', fontSize: 13, color: '#1e3a8a', marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#d1d5db' },
-  note: { marginTop: 20, padding: 10, backgroundColor: '#eff6ff', borderRadius: 6, fontSize: 9, color: '#1e40af' },
-  footer: { position: 'absolute', bottom: 30, left: 40, right: 40, textAlign: 'center', fontSize: 8, color: '#9ca3af' },
+  col4: { flex: 1, textAlign: 'right' },
+  col5: { flex: 1.5, textAlign: 'right' },
+  totals: { marginTop: 12, alignItems: 'flex-end' },
+  totalRow: { flexDirection: 'row', gap: 16, marginTop: 4 },
+  totalLabel: { fontSize: 10, color: '#555', width: 80, textAlign: 'right' },
+  totalValue: { fontSize: 10, width: 80, textAlign: 'right' },
+  grandTotal: { fontSize: 14, fontFamily: 'Helvetica-Bold', color: '#1e3a8a' },
+  note: { marginTop: 24, padding: 12, backgroundColor: '#f8f9fa', borderRadius: 4 },
+  noteLabel: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: '#888', marginBottom: 4 },
+  footer: { position: 'absolute', bottom: 24, left: 40, right: 40, textAlign: 'center', fontSize: 8, color: '#aaa' },
 })
 
 export interface PdfData {
-  type: 'ponuda' | 'faktura'
-  number?: string
+  type: 'quote' | 'invoice'
+  number: string
   date: string
-  companyName: string
-  companyAddress?: string
-  companyPhone?: string
-  client: { name: string; phone?: string; email?: string; address?: string }
+  dueDate?: string
+  company: { name: string; address?: string; phone?: string; pib?: string }
+  client: { name: string; address?: string; phone?: string; email?: string }
   items: { name: string; unit: string; quantity: number; price: number; total: number }[]
   total: number
   discountPercent?: number
   note?: string
 }
 
-function fmt(n: number) {
-  return n.toLocaleString('de-DE') + ' RSD'
-}
-
 export function buildQuotePdf(data: PdfData): React.ReactElement<DocumentProps> {
   const subtotal = data.items.reduce((s, i) => s + i.total, 0)
   const discountAmt = data.discountPercent ? subtotal * data.discountPercent / 100 : 0
+  const title = data.type === 'quote' ? 'PONUDA' : 'FAKTURA'
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
           <View>
-            <Text style={styles.companyName}>{data.companyName}</Text>
-            {data.companyAddress ? <Text style={styles.companyMeta}>{data.companyAddress}</Text> : null}
-            {data.companyPhone ? <Text style={styles.companyMeta}>{data.companyPhone}</Text> : null}
+            <Text style={styles.company}>{data.company.name}</Text>
+            {data.company.address && <Text style={styles.companyDetail}>{data.company.address}</Text>}
+            {data.company.phone && <Text style={styles.companyDetail}>Tel: {data.company.phone}</Text>}
+            {data.company.pib && <Text style={styles.companyDetail}>PIB: {data.company.pib}</Text>}
           </View>
-          <View style={styles.badgeWrap}>
-            <Text style={styles.badge}>{data.type.toUpperCase()}{data.number ? ` #${data.number}` : ''}</Text>
-            <Text style={styles.dateTxt}>{data.date}</Text>
+          <View>
+            <Text style={styles.docTitle}>{title}</Text>
+            <Text style={styles.docNumber}>Br. {data.number}</Text>
+            <Text style={[styles.docNumber, { marginTop: 2 }]}>Datum: {data.date}</Text>
+            {data.dueDate && <Text style={[styles.docNumber, { marginTop: 2 }]}>Rok: {data.dueDate}</Text>}
           </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.label}>Klijent</Text>
+          <Text style={styles.sectionTitle}>Klijent</Text>
           <Text style={styles.clientName}>{data.client.name}</Text>
-          {data.client.phone ? <Text style={styles.clientMeta}>Tel: {data.client.phone}</Text> : null}
-          {data.client.email ? <Text style={styles.clientMeta}>Email: {data.client.email}</Text> : null}
-          {data.client.address ? <Text style={styles.clientMeta}>{data.client.address}</Text> : null}
+          {data.client.address && <Text style={styles.clientDetail}>{data.client.address}</Text>}
+          {data.client.phone && <Text style={styles.clientDetail}>Tel: {data.client.phone}</Text>}
+          {data.client.email && <Text style={styles.clientDetail}>{data.client.email}</Text>}
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.label}>Stavke</Text>
-          <View style={styles.tableHeader}>
-            <Text style={styles.col1}>Naziv</Text>
-            <Text style={styles.col2}>Kol. / Jed.</Text>
-            <Text style={styles.col3}>Ukupno</Text>
-          </View>
-          {data.items.map((item, i) => (
-            <View key={i} style={styles.tableRow}>
-              <Text style={styles.col1}>{item.name}</Text>
-              <Text style={styles.col2}>{item.quantity} {item.unit}</Text>
-              <Text style={styles.col3}>{fmt(item.total)}</Text>
-            </View>
-          ))}
+        <View style={styles.tableHeader}>
+          <Text style={[styles.col1, { color: 'white', fontFamily: 'Helvetica-Bold' }]}>Opis</Text>
+          <Text style={[styles.col2, { color: 'white', fontFamily: 'Helvetica-Bold' }]}>Jed.</Text>
+          <Text style={[styles.col3, { color: 'white', fontFamily: 'Helvetica-Bold' }]}>Kol.</Text>
+          <Text style={[styles.col4, { color: 'white', fontFamily: 'Helvetica-Bold' }]}>Cena</Text>
+          <Text style={[styles.col5, { color: 'white', fontFamily: 'Helvetica-Bold' }]}>Ukupno</Text>
         </View>
 
-        <View style={styles.totalBox}>
-          <View style={styles.totalRow}>
-            <Text>Osnovica:</Text><Text>{fmt(subtotal)}</Text>
+        {data.items.map((item, i) => (
+          <View key={i} style={[styles.tableRow, i % 2 === 1 ? { backgroundColor: '#f9f9f9' } : {}]}>
+            <Text style={styles.col1}>{item.name}</Text>
+            <Text style={styles.col2}>{item.unit}</Text>
+            <Text style={styles.col3}>{item.quantity}</Text>
+            <Text style={styles.col4}>{item.price.toLocaleString('sr-RS')} RSD</Text>
+            <Text style={styles.col5}>{item.total.toLocaleString('sr-RS')} RSD</Text>
           </View>
-          {discountAmt > 0 ? (
-            <View style={styles.totalRow}>
-              <Text>Popust ({data.discountPercent}%):</Text><Text>- {fmt(discountAmt)}</Text>
-            </View>
+        ))}
+
+        <View style={styles.totals}>
+          {data.discountPercent ? (
+            <>
+              <View style={styles.totalRow}>
+                <Text style={styles.totalLabel}>Međuzbir:</Text>
+                <Text style={styles.totalValue}>{subtotal.toLocaleString('sr-RS')} RSD</Text>
+              </View>
+              <View style={styles.totalRow}>
+                <Text style={styles.totalLabel}>Popust ({data.discountPercent}%):</Text>
+                <Text style={styles.totalValue}>-{discountAmt.toLocaleString('sr-RS')} RSD</Text>
+              </View>
+            </>
           ) : null}
-          <View style={styles.totalFinal}>
-            <Text>UKUPNO:</Text><Text>{fmt(data.total)}</Text>
+          <View style={[styles.totalRow, { marginTop: 8 }]}>
+            <Text style={[styles.totalLabel, styles.grandTotal]}>UKUPNO:</Text>
+            <Text style={[styles.totalValue, styles.grandTotal]}>{data.total.toLocaleString('sr-RS')} RSD</Text>
           </View>
         </View>
 
-        {data.note ? (
+        {data.note && (
           <View style={styles.note}>
-            <Text>Napomena: {data.note}</Text>
+            <Text style={styles.noteLabel}>NAPOMENA</Text>
+            <Text>{data.note}</Text>
           </View>
-        ) : null}
+        )}
 
-        <Text style={styles.footer}>Generisano • {data.companyName}</Text>
+        <Text style={styles.footer}>Servis Ponuda · Generisano automatski</Text>
       </Page>
     </Document>
   ) as React.ReactElement<DocumentProps>
