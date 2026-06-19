@@ -1,201 +1,137 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import StatusBadge from '@/components/StatusBadge'
+import Link from 'next/link'
 
-const ACT_TYPES = [
-  { value: 'poziv', label: 'Poziv', icon: '📞', color: 'bg-blue-100 text-blue-700' },
-  { value: 'sastanak', label: 'Sastanak', icon: '🤝', color: 'bg-purple-100 text-purple-700' },
-  { value: 'beleska', label: 'Beleška', icon: '📝', color: 'bg-gray-100 text-gray-600' },
+const ACTIVITY_TYPES = [
+  { value: 'poziv', label: '📞 Poziv' },
+  { value: 'sastanak', label: '🤝 Sastanak' },
+  { value: 'beleska', label: '📝 Beleška' },
 ]
 
 export default function ClientDetailPage() {
-  const { id } = useParams<{ id: string }>()
+  const { id } = useParams()
   const router = useRouter()
   const [client, setClient] = useState<any>(null)
+  const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({ name: '', phone: '', email: '', address: '' })
-  const [editMode, setEditMode] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [saved, setSaved] = useState(false)
-
   const [activities, setActivities] = useState<any[]>([])
   const [actForm, setActForm] = useState({ type: 'poziv', note: '', activity_date: new Date().toISOString().split('T')[0] })
-  const [showActForm, setShowActForm] = useState(false)
-  const [savingAct, setSavingAct] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [addingAct, setAddingAct] = useState(false)
 
-  useEffect(() => {
-    fetch(`/api/clients/${id}`, { credentials: 'include' })
-      .then(r => r.json()).then(d => {
-        if (d.client) { setClient(d.client); setForm({ name: d.client.name, phone: d.client.phone || '', email: d.client.email || '', address: d.client.address || '' }) }
-        setLoading(false)
-      })
-    loadActivities()
-  }, [id])
-
-  async function loadActivities() {
-    const r = await fetch(`/api/clients/${id}/activities`, { credentials: 'include' })
-    const d = await r.json()
-    setActivities(d.activities || [])
+  async function loadData() {
+    const [cRes, aRes] = await Promise.all([
+      fetch(`/api/clients/${id}`),
+      fetch(`/api/clients/${id}/activities`),
+    ])
+    if (cRes.ok) {
+      const c = await cRes.json()
+      setClient(c)
+      setForm({ name: c.name, phone: c.phone || '', email: c.email || '', address: c.address || '' })
+    }
+    if (aRes.ok) setActivities(await aRes.json())
+    setLoading(false)
   }
 
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault(); setSaving(true)
-    const r = await fetch(`/api/clients/${id}`, { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
-    const d = await r.json()
-    if (r.ok) { setClient(d.client); setEditMode(false); setSaved(true); setTimeout(() => setSaved(false), 3000) }
+  useEffect(() => { loadData() }, [id])
+
+  async function saveEdit(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    const res = await fetch(`/api/clients/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
+    if (res.ok) { const c = await res.json(); setClient(c); setEditing(false) }
     setSaving(false)
   }
 
-  async function handleDelete() {
-    if (!confirm(`Obrisati klijenta "${client?.name}"?`)) return
-    await fetch(`/api/clients/${id}`, { method: 'DELETE', credentials: 'include' })
-    router.push('/clients')
+  async function addActivity(e: React.FormEvent) {
+    e.preventDefault()
+    setAddingAct(true)
+    const res = await fetch(`/api/clients/${id}/activities`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(actForm) })
+    if (res.ok) {
+      const a = await res.json()
+      setActivities(prev => [a, ...prev])
+      setActForm({ type: 'poziv', note: '', activity_date: new Date().toISOString().split('T')[0] })
+    }
+    setAddingAct(false)
   }
 
-  async function handleAddActivity(e: React.FormEvent) {
-    e.preventDefault(); setSavingAct(true)
-    await fetch(`/api/clients/${id}/activities`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(actForm) })
-    setShowActForm(false)
-    setActForm({ type: 'poziv', note: '', activity_date: new Date().toISOString().split('T')[0] })
-    setSavingAct(false)
-    loadActivities()
+  async function deleteActivity(actId: string) {
+    const res = await fetch(`/api/clients/${id}/activities/${actId}`, { method: 'DELETE' })
+    if (res.ok) setActivities(prev => prev.filter(a => a.id !== actId))
   }
 
-  async function handleDeleteActivity(actId: string) {
-    await fetch(`/api/clients/${id}/activities/${actId}`, { method: 'DELETE', credentials: 'include' })
-    setActivities(a => a.filter(x => x.id !== actId))
-  }
-
-  if (loading) return <div className="p-6 text-gray-400 text-sm">Učitavanje...</div>
-  if (!client) return <div className="p-6 text-gray-400 text-sm">Klijent nije pronađen</div>
+  if (loading) return <div className="p-4 md:p-8"><div className="h-8 bg-gray-200 rounded w-48 animate-pulse mb-4" /><div className="h-40 bg-gray-200 rounded-xl animate-pulse" /></div>
+  if (!client) return <div className="p-4">Klijent nije pronađen</div>
 
   return (
-    <div className="p-4 md:p-6 max-w-lg mx-auto">
-      <button onClick={() => router.back()} className="text-blue-600 text-sm mb-4 hover:underline">← Nazad</button>
-
-      <div className="flex items-start justify-between mb-5">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold text-gray-900">{client.name}</h1>
-          <p className="text-gray-400 text-xs mt-0.5">Klijent</p>
-        </div>
-        {!editMode && (
-          <button onClick={() => setEditMode(true)} className="border border-blue-500 text-blue-600 px-4 py-2 rounded-lg font-semibold text-sm hover:bg-blue-50">✏️ Izmeni</button>
-        )}
+    <div className="p-4 md:p-8 max-w-2xl">
+      <div className="flex items-center gap-3 mb-6">
+        <Link href="/clients" className="text-gray-500 hover:text-gray-700">← Nazad</Link>
+        <h1 className="text-xl font-bold text-gray-900 flex-1">{client.name}</h1>
+        {!editing && <button onClick={() => setEditing(true)} className="bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg text-sm font-medium">✏️ Izmeni</button>}
       </div>
 
-      {saved && <div className="bg-green-50 border border-green-200 text-green-700 rounded-lg px-4 py-3 text-sm mb-4">✓ Podaci su sačuvani</div>}
-
-      {editMode ? (
-        <form onSubmit={handleSave} className="bg-white rounded-xl border border-blue-200 p-5 shadow-sm space-y-3 mb-5">
-          <h2 className="font-semibold text-gray-900 mb-1">Izmeni podatke</h2>
-          {[
-            { key: 'name', label: 'Ime *', required: true, type: 'text', placeholder: 'Ime klijenta' },
-            { key: 'phone', label: 'Telefon', required: false, type: 'tel', placeholder: '+381 6x xxx xxxx' },
-            { key: 'email', label: 'Email', required: false, type: 'email', placeholder: 'email@primer.com' },
-            { key: 'address', label: 'Adresa', required: false, type: 'text', placeholder: 'Ulica i broj, Grad' },
-          ].map(({ key, label, required, type, placeholder }) => (
+      {editing ? (
+        <form onSubmit={saveEdit} className="bg-white rounded-xl p-4 space-y-3 mb-6 border border-gray-200">
+          {[{ label: 'Ime / Naziv firme *', key: 'name', type: 'text', required: true }, { label: 'Telefon', key: 'phone', type: 'tel' }, { label: 'Email', key: 'email', type: 'email' }, { label: 'Adresa', key: 'address', type: 'text' }].map(({ label, key, type, required }) => (
             <div key={key}>
-              <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
-              <input type={type} value={(form as any)[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} required={required} placeholder={placeholder}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
+              <input required={required} type={type} value={(form as any)[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]" />
             </div>
           ))}
-          <div className="flex gap-3 pt-1">
-            <button type="submit" disabled={saving} className="flex-1 bg-[#2563EB] text-white rounded-lg py-2.5 font-semibold text-sm disabled:opacity-60">{saving ? 'Čuvanje...' : 'Sačuvaj izmene'}</button>
-            <button type="button" onClick={() => { setEditMode(false); setForm({ name: client.name, phone: client.phone || '', email: client.email || '', address: client.address || '' }) }}
-              className="px-5 py-2.5 rounded-lg text-sm border border-gray-300 text-gray-600">Otkaži</button>
+          <div className="flex gap-3 pt-2">
+            <button type="submit" disabled={saving} className="flex-1 bg-[#1e3a8a] text-white py-3 rounded-xl font-semibold disabled:opacity-50">{saving ? 'Čuvanje...' : 'Sačuvaj'}</button>
+            <button type="button" onClick={() => { setEditing(false); setForm({ name: client.name, phone: client.phone || '', email: client.email || '', address: client.address || '' }) }} className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-semibold">Otkaži</button>
           </div>
         </form>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden mb-5">
-          {[{ label: 'Ime', value: client.name, icon: '👤' }, { label: 'Telefon', value: client.phone, icon: '📞' }, { label: 'Email', value: client.email, icon: '✉️' }, { label: 'Adresa', value: client.address, icon: '📍' }].map(({ label, value, icon }) => (
-            <div key={label} className="flex items-start gap-3 px-5 py-4 border-b border-gray-50 last:border-0">
-              <span className="text-lg shrink-0">{icon}</span>
-              <div className="min-w-0">
-                <div className="text-xs text-gray-400 mb-0.5">{label}</div>
-                <div className="text-sm font-medium text-gray-800">{value || <span className="text-gray-300">Nije uneto</span>}</div>
-              </div>
-            </div>
-          ))}
+        <div className="bg-white rounded-xl p-4 mb-6 border border-gray-100 space-y-3">
+          {[{ label: 'Telefon', value: client.phone }, { label: 'Email', value: client.email }, { label: 'Adresa', value: client.address }].map(({ label, value }) => value ? (
+            <div key={label}><div className="text-xs text-gray-400 uppercase font-medium">{label}</div><div className="text-gray-900 mt-0.5">{value}</div></div>
+          ) : null)}
+          <Link href={`/quotes/new?client=${id}`} className="block w-full text-center bg-[#1e3a8a] text-white py-3 rounded-xl font-semibold mt-4">+ Nova ponuda za ovog klijenta</Link>
         </div>
       )}
 
-      {/* ===== CRM AKTIVNOSTI ===== */}
-      <div className="mb-5">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold text-gray-900">CRM Aktivnosti</h2>
-          <button onClick={() => setShowActForm(s => !s)}
-            className="bg-[#2563EB] text-white px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-blue-700">
-            + Dodaj
-          </button>
-        </div>
-
-        {showActForm && (
-          <form onSubmit={handleAddActivity} className="bg-white rounded-xl border border-blue-200 p-4 mb-3 shadow-sm space-y-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Tip</label>
-              <div className="flex gap-2">
-                {ACT_TYPES.map(t => (
-                  <button key={t.value} type="button" onClick={() => setActForm(f => ({ ...f, type: t.value }))}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                      actForm.type === t.value ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'
-                    }`}>
-                    {t.icon} {t.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Beleška</label>
-              <input value={actForm.note} onChange={e => setActForm(f => ({ ...f, note: e.target.value }))}
-                placeholder="Kratki opis..."
-                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Datum</label>
-              <input type="date" value={actForm.activity_date} onChange={e => setActForm(f => ({ ...f, activity_date: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm" />
-            </div>
-            <div className="flex gap-3">
-              <button type="submit" disabled={savingAct} className="flex-1 bg-[#2563EB] text-white py-2.5 rounded-lg text-sm font-semibold disabled:opacity-60">{savingAct ? 'Čuvanje...' : 'Sačuvaj'}</button>
-              <button type="button" onClick={() => setShowActForm(false)} className="px-5 py-2.5 rounded-lg text-sm border border-gray-300 text-gray-600">Otkaži</button>
-            </div>
-          </form>
-        )}
-
-        {activities.length === 0 ? (
-          <div className="text-center py-6 text-gray-400 text-sm bg-white rounded-xl border border-gray-100">
-            Nema zabeleženih aktivnosti
+      <div>
+        <h2 className="font-semibold text-gray-900 mb-3">CRM aktivnosti</h2>
+        <form onSubmit={addActivity} className="bg-white rounded-xl p-4 mb-4 border border-gray-200 space-y-3">
+          <div className="flex gap-2">
+            {ACTIVITY_TYPES.map(t => (
+              <button type="button" key={t.value} onClick={() => setActForm(f => ({ ...f, type: t.value }))}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${actForm.type === t.value ? 'bg-[#1e3a8a] text-white' : 'bg-gray-100 text-gray-700'}`}>
+                {t.label}
+              </button>
+            ))}
           </div>
+          <textarea value={actForm.note} onChange={e => setActForm(f => ({ ...f, note: e.target.value }))} placeholder="Beleška..." rows={2}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-[#1e3a8a] resize-none" />
+          <div className="flex gap-3 items-center">
+            <input type="date" value={actForm.activity_date} onChange={e => setActForm(f => ({ ...f, activity_date: e.target.value }))}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]" />
+            <button type="submit" disabled={addingAct} className="flex-1 bg-[#1e3a8a] text-white py-2.5 rounded-xl font-semibold text-sm disabled:opacity-50">
+              {addingAct ? 'Dodavanje...' : 'Dodaj'}
+            </button>
+          </div>
+        </form>
+        {activities.length === 0 ? (
+          <div className="text-center text-gray-400 py-6 text-sm">Još nema aktivnosti</div>
         ) : (
           <div className="space-y-2">
-            {activities.map((act: any) => {
-              const t = ACT_TYPES.find(x => x.value === act.type) || ACT_TYPES[2]
-              return (
-                <div key={act.id} className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 flex items-start gap-3">
-                  <span className="text-xl shrink-0 mt-0.5">{t.icon}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${t.color}`}>{t.label}</span>
-                      <span className="text-xs text-gray-400">{act.activity_date ? new Date(act.activity_date).toLocaleDateString('sr-RS') : ''}</span>
-                    </div>
-                    {act.note && <div className="text-sm text-gray-700 mt-1">{act.note}</div>}
-                  </div>
-                  <button onClick={() => handleDeleteActivity(act.id)} className="text-gray-300 hover:text-red-400 text-lg shrink-0">×</button>
-                </div>
-              )
-            })}
+            {activities.map((a: any) => (
+              <div key={a.id} className="bg-white rounded-xl p-4 border border-gray-100 flex items-start gap-3">
+                <span className="text-xl">{ACTIVITY_TYPES.find(t => t.value === a.type)?.label.split(' ')[0] || '📝'}</span>
+                <div className="flex-1"><div className="text-xs text-gray-400 font-medium uppercase">{a.type} · {a.activity_date}</div>{a.note && <div className="text-gray-800 text-sm mt-0.5">{a.note}</div>}</div>
+                <button onClick={() => deleteActivity(a.id)} className="text-gray-300 hover:text-red-400 text-lg leading-none">✕</button>
+              </div>
+            ))}
           </div>
         )}
       </div>
-
-      {!editMode && (
-        <button onClick={handleDelete} className="w-full border border-red-200 text-red-500 py-2.5 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors">
-          Obriši klijenta
-        </button>
-      )}
     </div>
   )
 }
