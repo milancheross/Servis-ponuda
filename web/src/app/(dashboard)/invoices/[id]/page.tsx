@@ -12,7 +12,9 @@ export default function InvoiceDetailPage() {
   const [acting, setActing] = useState(false)
 
   useEffect(() => {
-    fetch(`/api/invoices/${id}`, { credentials: 'include' }).then(r => r.json()).then(d => { setInvoice(d.invoice); setLoading(false) })
+    fetch(`/api/invoices/${id}`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => { setInvoice(d.invoice); setLoading(false) })
   }, [id])
 
   async function handleMarkPaid() {
@@ -39,10 +41,12 @@ export default function InvoiceDetailPage() {
           <StatusBadge status={invoice.status} />
         </div>
         <div className="text-3xl font-bold mb-2">{(invoice.total||0).toLocaleString('sr-RS')} RSD</div>
-        <div className="text-blue-200 text-sm">Izdato: {new Date(invoice.issued_at).toLocaleDateString('sr-RS')}
-          {invoice.due_at && ` • Rok: ${new Date(invoice.due_at).toLocaleDateString('sr-RS')}`}</div>
-        {invoice.status === 'placeno' && invoice.paid_at && (
-          <div className="text-green-300 text-sm mt-1">✓ Plaćeno: {new Date(invoice.paid_at).toLocaleDateString('sr-RS')}</div>
+        <div className="text-blue-200 text-sm">
+          Izdato: {new Date(invoice.issued_at).toLocaleDateString('sr-RS')}
+          {invoice.due_date && ` • Rok: ${new Date(invoice.due_date).toLocaleDateString('sr-RS')}`}
+        </div>
+        {invoice.status === 'placeno' && (
+          <div className="text-green-300 text-sm mt-1">✓ Plaćeno</div>
         )}
       </div>
 
@@ -51,6 +55,7 @@ export default function InvoiceDetailPage() {
           <div className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">Klijent</div>
           <div className="font-semibold">{invoice.client.name}</div>
           {invoice.client.phone && <div className="text-sm text-gray-500 mt-1">📞 {invoice.client.phone}</div>}
+          {invoice.client.email && <div className="text-sm text-gray-500">✉ {invoice.client.email}</div>}
         </div>
       )}
 
@@ -67,7 +72,7 @@ export default function InvoiceDetailPage() {
               <tr key={idx} className="border-b border-gray-50">
                 <td className="py-3 font-medium">{item.name}</td>
                 <td className="py-3 text-center text-gray-500">{item.quantity} {item.unit}</td>
-                <td className="py-3 text-right font-semibold">{item.total.toLocaleString('sr-RS')}</td>
+                <td className="py-3 text-right font-semibold">{Number(item.total).toLocaleString('sr-RS')}</td>
               </tr>
             ))}
           </tbody>
@@ -83,8 +88,12 @@ export default function InvoiceDetailPage() {
             {acting ? '...' : '✓ Označi kao plaćeno'}
           </button>
         )}
+        <a href={`/api/invoices/${id}/pdf`} target="_blank"
+          className="border border-gray-300 text-gray-700 px-5 py-3 rounded-lg font-semibold text-sm hover:bg-gray-50 flex items-center gap-2">
+          📄 Preuzmi PDF
+        </a>
         <button onClick={() => window.print()} className="border border-gray-300 text-gray-600 px-5 py-3 rounded-lg font-semibold text-sm hover:bg-gray-50">
-          🖸 Štampaj / PDF
+          🖸 Štampaj
         </button>
       </div>
     </div>

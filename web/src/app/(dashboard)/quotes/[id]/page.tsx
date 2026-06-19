@@ -15,7 +15,15 @@ export default function QuoteDetailPage() {
   const [trackingUrl, setTrackingUrl] = useState('')
 
   useEffect(() => {
-    fetch(`/api/quotes/${id}`, { credentials: 'include' }).then(r => r.json()).then(d => { setQuote(d.quote); setLoading(false) })
+    fetch(`/api/quotes/${id}`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => {
+        setQuote(d.quote)
+        if (d.quote?.tracking_token && d.quote?.status !== 'nacrt') {
+          setTrackingUrl(`${window.location.origin}/q/${d.quote.tracking_token}`)
+        }
+        setLoading(false)
+      })
   }, [id])
 
   async function handleSend() {
@@ -23,13 +31,13 @@ export default function QuoteDetailPage() {
     const r = await fetch(`/api/quotes/${id}/send`, { method: 'POST', credentials: 'include' })
     const d = await r.json()
     setQuote(d.quote)
-    setTrackingUrl(d.tracking_url || '')
+    if (d.tracking_url) setTrackingUrl(d.tracking_url)
     setActing(false)
   }
 
   async function handleConvert() {
     setActing(true)
-    const r = await fetch(`/api/quotes/${id}/convert-to-invoice`, { method: 'POST', credentials: 'include' })
+    const r = await fetch(`/api/quotes/${id}/convert`, { method: 'POST', credentials: 'include' })
     const d = await r.json()
     setActing(false)
     if (r.ok) router.push(`/invoices/${d.invoice.id}`)
@@ -76,7 +84,7 @@ export default function QuoteDetailPage() {
               <tr key={idx} className="border-b border-gray-50">
                 <td className="py-3 font-medium">{item.name}</td>
                 <td className="py-3 text-center text-gray-500">{item.quantity} {item.unit}</td>
-                <td className="py-3 text-right font-semibold">{item.total.toLocaleString('sr-RS')}</td>
+                <td className="py-3 text-right font-semibold">{Number(item.total).toLocaleString('sr-RS')}</td>
               </tr>
             ))}
           </tbody>
@@ -88,8 +96,13 @@ export default function QuoteDetailPage() {
 
       {trackingUrl && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 text-sm">
-          <div className="font-semibold text-blue-800 mb-1">Link za klijenta:</div>
-          <a href={trackingUrl} target="_blank" rel="noreferrer" className="text-blue-600 break-all hover:underline">{trackingUrl}</a>
+          <div className="font-semibold text-blue-800 mb-2">Link za klijenta:</div>
+          <div className="flex items-center gap-3">
+            <a href={trackingUrl} target="_blank" rel="noreferrer" className="text-blue-600 break-all hover:underline flex-1">{trackingUrl}</a>
+            <button onClick={() => navigator.clipboard.writeText(trackingUrl)} className="shrink-0 bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-blue-200">
+              Kopiraj
+            </button>
+          </div>
         </div>
       )}
 
@@ -99,13 +112,17 @@ export default function QuoteDetailPage() {
             {acting ? '...' : '📤 Pošalji ponudu'}
           </button>
         )}
-        {quote.status === 'prihvacena' && (
+        {(quote.status === 'prihvacena' || quote.status === 'poslata') && (
           <button onClick={handleConvert} disabled={acting} className="bg-green-600 text-white px-5 py-3 rounded-lg font-semibold text-sm disabled:opacity-60">
             {acting ? '...' : '🧾 Kreiraj fakturu'}
           </button>
         )}
+        <a href={`/api/quotes/${id}/pdf`} target="_blank"
+          className="border border-gray-300 text-gray-700 px-5 py-3 rounded-lg font-semibold text-sm hover:bg-gray-50 flex items-center gap-2">
+          📄 Preuzmi PDF
+        </a>
         <button onClick={() => window.print()} className="border border-gray-300 text-gray-600 px-5 py-3 rounded-lg font-semibold text-sm hover:bg-gray-50">
-          🖸 Štampaj / PDF
+          🖸 Štampaj
         </button>
       </div>
     </div>
