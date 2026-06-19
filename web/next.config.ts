@@ -1,5 +1,1 @@
-import type { NextConfig } from 'next'
-
-const nextConfig: NextConfig = {}
-
-export default nextConfig
+// This file is intentionally left empty — use next.config.mjs
