@@ -1,6 +1,5 @@
 export type QuoteStatus = 'nacrt' | 'poslata' | 'prihvacena' | 'odbijena'
 export type InvoiceStatus = 'neplaceno' | 'placeno'
-export type JobStatus = 'zakazano' | 'u_toku' | 'zavrseno'
 export type PriceCategory = 'rad' | 'materijal' | 'ostalo'
 
 export interface User {
@@ -50,18 +49,20 @@ export interface Quote {
   user_id: string
   client_id: string
   client?: Client | null
+  quote_number?: string
   status: QuoteStatus
   total_amount: number
-  total: number
-  subtotal: number
   discount_percent: number
-  discount_amount: number
   tracking_token?: string
   sent_at?: string
   opened_at?: string
+  signed_by?: string
+  signed_at?: string
+  signed_ip?: string
+  signature_data?: string
   note?: string
   valid_until?: string
-  items: QuoteItem[]
+  items?: QuoteItem[]
   created_at: string
 }
 
@@ -74,25 +75,8 @@ export interface Invoice {
   invoice_number: string
   status: InvoiceStatus
   total_amount: number
-  total: number
-  subtotal: number
-  discount_percent: number
-  discount_amount: number
   issued_at: string
   due_date?: string
-  due_at?: string
-  paid_at?: string
-  items: QuoteItem[]
-  created_at: string
-}
-
-export interface Job {
-  id: string
-  user_id: string
-  title: string
-  status: JobStatus
-  scheduled_at?: string
-  note?: string
-  quote_id?: string
+  items?: QuoteItem[]
   created_at: string
 }

@@ -5,8 +5,6 @@ const CONFIG: Record<string, { label: string; className: string }> = {
   odbijena:   { label: 'Odbijena',   className: 'bg-red-100 text-red-700' },
   neplaceno:  { label: 'Neplaćeno',  className: 'bg-orange-100 text-orange-700' },
   placeno:    { label: 'Plaćeno',    className: 'bg-green-100 text-green-700' },
-  paid:       { label: 'Plaćeno',    className: 'bg-green-100 text-green-700' },
-  unpaid:     { label: 'Neplaćeno',  className: 'bg-orange-100 text-orange-700' },
 }
 
 export default function StatusBadge({ status, small }: { status: string; small?: boolean }) {
