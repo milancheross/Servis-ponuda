@@ -49,17 +49,21 @@ export default function QuoteDetailPage() {
   return (
     <div className="p-6 max-w-3xl mx-auto">
       <button onClick={() => router.back()} className="text-blue-600 text-sm mb-6 hover:underline print:hidden">← Nazad</button>
+
       <div className="bg-[#1e3a8a] text-white rounded-2xl p-6 mb-6">
         <div className="flex justify-between items-start mb-4">
           <div>
             <div className="text-blue-300 text-xs font-bold tracking-widest mb-1">PONUDA</div>
+            {quote.quote_number && <div className="text-blue-200 text-sm font-mono mb-1">{quote.quote_number}</div>}
             {user && <div className="font-bold text-lg">{user.company_name}</div>}
           </div>
           <StatusBadge status={quote.status} />
         </div>
-        <div className="text-3xl font-bold mb-2">{(quote.total||0).toLocaleString('sr-RS')} RSD</div>
-        <div className="text-blue-200 text-sm">Kreirano: {new Date(quote.created_at).toLocaleDateString('sr-RS')}
-          {quote.sent_at && ` • Poslato: ${new Date(quote.sent_at).toLocaleDateString('sr-RS')}`}</div>
+        <div className="text-3xl font-bold mb-2">{(quote.total || 0).toLocaleString('sr-RS')} RSD</div>
+        <div className="text-blue-200 text-sm">
+          Kreirano: {new Date(quote.created_at).toLocaleDateString('sr-RS')}
+          {quote.sent_at && ` • Poslato: ${new Date(quote.sent_at).toLocaleDateString('sr-RS')}`}
+        </div>
       </div>
 
       {quote.client && (
@@ -80,7 +84,7 @@ export default function QuoteDetailPage() {
             <th className="text-right py-2 text-gray-500 font-medium">Ukupno</th>
           </tr></thead>
           <tbody>
-            {(quote.items||[]).map((item: any, idx: number) => (
+            {(quote.items || []).map((item: any, idx: number) => (
               <tr key={idx} className="border-b border-gray-50">
                 <td className="py-3 font-medium">{item.name}</td>
                 <td className="py-3 text-center text-gray-500">{item.quantity} {item.unit}</td>
@@ -90,18 +94,35 @@ export default function QuoteDetailPage() {
           </tbody>
         </table>
         <div className="mt-4 flex justify-between font-bold text-base border-t pt-2">
-          <span>UKUPNO:</span><span className="text-[#2563EB]">{(quote.total||0).toLocaleString('sr-RS')} RSD</span>
+          <span>UKUPNO:</span><span className="text-[#2563EB]">{(quote.total || 0).toLocaleString('sr-RS')} RSD</span>
         </div>
       </div>
+
+      {/* Digital signature info */}
+      {quote.signed_by && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-5 mb-4">
+          <div className="text-xs font-bold text-green-700 uppercase tracking-wider mb-3">✍️ Digitalni potpis</div>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div><span className="text-gray-500">Potpisao:</span><div className="font-semibold">{quote.signed_by}</div></div>
+            <div><span className="text-gray-500">Datum:</span><div className="font-semibold">{new Date(quote.signed_at).toLocaleString('sr-RS')}</div></div>
+            <div><span className="text-gray-500">IP adresa:</span><div className="font-mono text-xs">{quote.signed_ip}</div></div>
+          </div>
+          {quote.signature_data && (
+            <div className="mt-3">
+              <div className="text-xs text-gray-500 mb-1">Potpis:</div>
+              <img src={quote.signature_data} alt="potpis" className="h-16 border border-green-200 rounded-lg bg-white p-1" />
+            </div>
+          )}
+        </div>
+      )}
 
       {trackingUrl && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 text-sm">
           <div className="font-semibold text-blue-800 mb-2">Link za klijenta:</div>
           <div className="flex items-center gap-3">
             <a href={trackingUrl} target="_blank" rel="noreferrer" className="text-blue-600 break-all hover:underline flex-1">{trackingUrl}</a>
-            <button onClick={() => navigator.clipboard.writeText(trackingUrl)} className="shrink-0 bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-blue-200">
-              Kopiraj
-            </button>
+            <button onClick={() => navigator.clipboard.writeText(trackingUrl)}
+              className="shrink-0 bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-blue-200">Kopiraj</button>
           </div>
         </div>
       )}

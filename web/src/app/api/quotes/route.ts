@@ -14,7 +14,6 @@ export const GET = withAuth(async (req, userId) => {
   if (status) query = query.eq('status', status)
   const { data, error } = await query
   if (error) return err(error.message, 500)
-  // map total_amount -> total for frontend compatibility
   const quotes = (data || []).map((q: any) => ({ ...q, total: q.total_amount }))
   return ok({ quotes })
 })
@@ -27,12 +26,21 @@ export const POST = withAuth(async (req, userId) => {
   const subtotal = (items || []).reduce((s: number, i: any) => s + i.quantity * i.price, 0)
   const total_amount = Math.round(subtotal * (1 - discount_percent / 100) * 100) / 100
 
+  // Generate quote number SP-YYYY-NNN
+  const year = new Date().getFullYear()
+  const { count } = await supabase
+    .from('quotes')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+  const quote_number = `SP-${year}-${String((count || 0) + 1).padStart(3, '0')}`
+
   const insertData: Record<string, any> = {
     user_id: userId,
     client_id,
     status: 'nacrt',
     total_amount,
     tracking_token: uuidv4(),
+    quote_number,
   }
   if (note) insertData.note = note
   if (valid_until) insertData.valid_until = valid_until
