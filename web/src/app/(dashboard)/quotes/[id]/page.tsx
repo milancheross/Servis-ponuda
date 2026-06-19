@@ -5,6 +5,13 @@ import { useParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/components/AuthProvider'
 import StatusBadge from '@/components/StatusBadge'
 
+const CAT_LABELS: Record<string, string> = { rad: 'Rad', materijal: 'Materijal', ostalo: 'Ostalo' }
+const CAT_COLORS: Record<string, string> = {
+  rad: 'bg-blue-50 border-blue-200 text-blue-800',
+  materijal: 'bg-orange-50 border-orange-200 text-orange-800',
+  ostalo: 'bg-gray-50 border-gray-200 text-gray-700',
+}
+
 export default function QuoteDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
@@ -19,17 +26,10 @@ export default function QuoteDetailPage() {
 
   useEffect(() => {
     fetch(`/api/quotes/${id}`, { credentials: 'include' })
-      .then(r => r.json())
-      .then(d => {
+      .then(r => r.json()).then(d => {
         setQuote(d.quote)
-        setEditForm({
-          note: d.quote?.note || '',
-          valid_until: d.quote?.valid_until ? d.quote.valid_until.split('T')[0] : '',
-          discount_percent: d.quote?.discount_percent || 0,
-        })
-        if (d.quote?.tracking_token && d.quote?.status !== 'nacrt') {
-          setTrackingUrl(`${window.location.origin}/q/${d.quote.tracking_token}`)
-        }
+        setEditForm({ note: d.quote?.note || '', valid_until: d.quote?.valid_until ? d.quote.valid_until.split('T')[0] : '', discount_percent: d.quote?.discount_percent || 0 })
+        if (d.quote?.tracking_token && d.quote?.status !== 'nacrt') setTrackingUrl(`${window.location.origin}/q/${d.quote.tracking_token}`)
         setLoading(false)
       })
   }, [id])
@@ -52,13 +52,8 @@ export default function QuoteDetailPage() {
   }
 
   async function handleSaveEdit(e: React.FormEvent) {
-    e.preventDefault()
-    setSaving(true)
-    const r = await fetch(`/api/quotes/${id}`, {
-      method: 'PUT', credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(editForm),
-    })
+    e.preventDefault(); setSaving(true)
+    const r = await fetch(`/api/quotes/${id}`, { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(editForm) })
     const d = await r.json()
     if (r.ok) { setQuote(d.quote); setEditMode(false) }
     setSaving(false)
@@ -74,6 +69,15 @@ export default function QuoteDetailPage() {
   if (!quote) return <div className="p-6 text-gray-400 text-sm">Ponuda nije pronađena</div>
 
   const canEdit = quote.status === 'nacrt'
+  const items: any[] = quote.items || []
+
+  // Troskovnik breakdown by category
+  const breakdown: Record<string, number> = {}
+  for (const item of items) {
+    const cat = item.category || 'ostalo'
+    breakdown[cat] = (breakdown[cat] || 0) + Number(item.total)
+  }
+  const hasCategoryData = items.some(i => i.category && i.category !== 'ostalo') || Object.keys(breakdown).length > 1
 
   return (
     <div className="p-4 md:p-6 max-w-3xl mx-auto">
@@ -95,43 +99,34 @@ export default function QuoteDetailPage() {
         </div>
       </div>
 
-      {/* Edit form for draft quotes */}
       {canEdit && editMode ? (
         <form onSubmit={handleSaveEdit} className="bg-white rounded-xl border border-blue-200 p-5 mb-4 shadow-sm">
           <h2 className="font-semibold text-gray-900 mb-4">Izmeni ponudu</h2>
           <div className="space-y-3">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Napomena</label>
-              <textarea value={editForm.note} onChange={e => setEditForm(f => ({ ...f, note: e.target.value }))}
-                rows={3} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none" />
+              <textarea value={editForm.note} onChange={e => setEditForm(f => ({ ...f, note: e.target.value }))} rows={3} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Važi do</label>
-                <input type="date" value={editForm.valid_until} onChange={e => setEditForm(f => ({ ...f, valid_until: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                <input type="date" value={editForm.valid_until} onChange={e => setEditForm(f => ({ ...f, valid_until: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Popust (%)</label>
-                <input type="number" min="0" max="100" value={editForm.discount_percent}
-                  onChange={e => setEditForm(f => ({ ...f, discount_percent: Number(e.target.value) }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                <input type="number" min="0" max="100" value={editForm.discount_percent} onChange={e => setEditForm(f => ({ ...f, discount_percent: Number(e.target.value) }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
               </div>
             </div>
           </div>
           <div className="flex gap-3 mt-4">
-            <button type="submit" disabled={saving}
-              className="flex-1 bg-[#2563EB] text-white py-2.5 rounded-lg text-sm font-semibold disabled:opacity-60">
-              {saving ? 'Čuvanje...' : 'Sačuvaj izmene'}
-            </button>
-            <button type="button" onClick={() => setEditMode(false)}
-              className="px-5 py-2.5 rounded-lg text-sm border border-gray-300 text-gray-600">Otkaži</button>
+            <button type="submit" disabled={saving} className="flex-1 bg-[#2563EB] text-white py-2.5 rounded-lg text-sm font-semibold disabled:opacity-60">{saving ? 'Čuvanje...' : 'Sačuvaj izmene'}</button>
+            <button type="button" onClick={() => setEditMode(false)} className="px-5 py-2.5 rounded-lg text-sm border border-gray-300 text-gray-600">Otkaži</button>
           </div>
         </form>
       ) : (
         <>
           {quote.client && (
-            <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-5 mb-3 shadow-sm">
+            <div className="bg-white rounded-xl border border-gray-200 p-4 mb-3 shadow-sm">
               <div className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">Klijent</div>
               <div className="font-semibold">{quote.client.name}</div>
               {quote.client.phone && <div className="text-sm text-gray-500 mt-1">📞 {quote.client.phone}</div>}
@@ -139,10 +134,11 @@ export default function QuoteDetailPage() {
             </div>
           )}
 
-          <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-5 mb-3 shadow-sm">
+          {/* Stavke */}
+          <div className="bg-white rounded-xl border border-gray-200 p-4 mb-3 shadow-sm">
             <div className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-3">Stavke</div>
             <div className="space-y-2">
-              {(quote.items || []).map((item: any, idx: number) => (
+              {items.map((item: any, idx: number) => (
                 <div key={idx} className="flex justify-between text-sm py-2 border-b border-gray-50 last:border-0">
                   <div>
                     <div className="font-medium">{item.name}</div>
@@ -163,6 +159,25 @@ export default function QuoteDetailPage() {
             </div>
           </div>
 
+          {/* Troskovnik */}
+          {Object.keys(breakdown).length > 0 && (
+            <div className="bg-white rounded-xl border border-gray-200 p-4 mb-3 shadow-sm">
+              <div className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-3">📊 Troškovnik</div>
+              <div className="space-y-2">
+                {Object.entries(breakdown).map(([cat, amount]) => (
+                  <div key={cat} className={`flex justify-between items-center px-3 py-2 rounded-lg border text-sm ${CAT_COLORS[cat] || CAT_COLORS.ostalo}`}>
+                    <span className="font-medium">{CAT_LABELS[cat] || cat}</span>
+                    <span className="font-bold">{Number(amount).toLocaleString('sr-RS')} RSD</span>
+                  </div>
+                ))}
+                <div className="flex justify-between items-center px-3 py-2 rounded-lg bg-[#1e3a8a] text-white text-sm">
+                  <span className="font-bold">Ukupno ponuda</span>
+                  <span className="font-bold">{(quote.total || 0).toLocaleString('sr-RS')} RSD</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {(quote.note || quote.valid_until) && (
             <div className="bg-white rounded-xl border border-gray-200 p-4 mb-3 shadow-sm text-sm">
               {quote.note && <div className="text-gray-700 mb-1"><span className="font-medium">Napomena:</span> {quote.note}</div>}
@@ -178,9 +193,7 @@ export default function QuoteDetailPage() {
                 <div><span className="text-gray-500">Datum:</span> <span className="font-semibold">{new Date(quote.signed_at).toLocaleString('sr-RS')}</span></div>
                 <div><span className="text-gray-500">IP:</span> <span className="font-mono text-xs">{quote.signed_ip}</span></div>
               </div>
-              {quote.signature_data && (
-                <img src={quote.signature_data} alt="potpis" className="mt-2 h-16 border border-green-200 rounded-lg bg-white p-1" />
-              )}
+              {quote.signature_data && <img src={quote.signature_data} alt="potpis" className="mt-2 h-16 border border-green-200 rounded-lg bg-white p-1" />}
             </div>
           )}
 
@@ -189,43 +202,30 @@ export default function QuoteDetailPage() {
               <div className="font-semibold text-blue-800 mb-2">Link za klijenta:</div>
               <div className="flex items-center gap-2">
                 <a href={trackingUrl} target="_blank" rel="noreferrer" className="text-blue-600 break-all hover:underline flex-1 text-xs">{trackingUrl}</a>
-                <button onClick={() => navigator.clipboard.writeText(trackingUrl)}
-                  className="shrink-0 bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-blue-200">Kopiraj</button>
+                <button onClick={() => navigator.clipboard.writeText(trackingUrl)} className="shrink-0 bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-blue-200">Kopiraj</button>
               </div>
             </div>
           )}
         </>
       )}
 
-      {/* Actions */}
       <div className="flex flex-wrap gap-2 print:hidden">
         {canEdit && !editMode && (
-          <button onClick={() => setEditMode(true)}
-            className="flex-1 sm:flex-none border border-blue-500 text-blue-600 px-4 py-2.5 rounded-lg font-semibold text-sm hover:bg-blue-50">
-            ✏️ Izmeni
-          </button>
+          <button onClick={() => setEditMode(true)} className="flex-1 sm:flex-none border border-blue-500 text-blue-600 px-4 py-2.5 rounded-lg font-semibold text-sm hover:bg-blue-50">✏️ Izmeni</button>
         )}
         {quote.status === 'nacrt' && (
-          <button onClick={handleSend} disabled={acting}
-            className="flex-1 sm:flex-none bg-[#2563EB] text-white px-4 py-2.5 rounded-lg font-semibold text-sm disabled:opacity-60">
+          <button onClick={handleSend} disabled={acting} className="flex-1 sm:flex-none bg-[#2563EB] text-white px-4 py-2.5 rounded-lg font-semibold text-sm disabled:opacity-60">
             {acting ? '...' : '📤 Pošalji'}
           </button>
         )}
         {(quote.status === 'prihvacena' || quote.status === 'poslata') && (
-          <button onClick={handleConvert} disabled={acting}
-            className="flex-1 sm:flex-none bg-green-600 text-white px-4 py-2.5 rounded-lg font-semibold text-sm disabled:opacity-60">
+          <button onClick={handleConvert} disabled={acting} className="flex-1 sm:flex-none bg-green-600 text-white px-4 py-2.5 rounded-lg font-semibold text-sm disabled:opacity-60">
             {acting ? '...' : '🧾 Kreiraj fakturu'}
           </button>
         )}
-        <a href={`/api/quotes/${id}/pdf`} target="_blank"
-          className="flex-1 sm:flex-none border border-gray-300 text-gray-700 px-4 py-2.5 rounded-lg font-semibold text-sm hover:bg-gray-50 text-center">
-          📄 PDF
-        </a>
+        <a href={`/api/quotes/${id}/pdf`} target="_blank" className="flex-1 sm:flex-none border border-gray-300 text-gray-700 px-4 py-2.5 rounded-lg font-semibold text-sm hover:bg-gray-50 text-center">📄 PDF</a>
         {canEdit && (
-          <button onClick={handleDelete}
-            className="border border-red-200 text-red-500 px-4 py-2.5 rounded-lg font-semibold text-sm hover:bg-red-50">
-            Obriši
-          </button>
+          <button onClick={handleDelete} className="border border-red-200 text-red-500 px-4 py-2.5 rounded-lg font-semibold text-sm hover:bg-red-50">Obriši</button>
         )}
       </div>
     </div>

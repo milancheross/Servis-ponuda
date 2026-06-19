@@ -1,11 +1,26 @@
 import { NextRequest } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { withAuth, ok, err } from '@/lib/api-helpers'
-import { v4 as uuidv4 } from 'uuid'
 
 export const GET = withAuth(async (req, userId) => {
   const { searchParams } = new URL(req.url)
-  const status = searchParams.get('status')
+  const reminders = searchParams.get('reminders')
+
+  if (reminders) {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+    const { data, error } = await supabase
+      .from('quotes')
+      .select('*, client:clients(id,name,phone)')
+      .eq('user_id', userId)
+      .eq('status', 'poslata')
+      .lte('sent_at', sevenDaysAgo)
+      .order('sent_at', { ascending: true })
+    if (error) return err(error.message, 500)
+    return ok({ quotes: (data || []).map((q: any) => ({ ...q, total: q.total_amount })) })
+  }
+
+  const { searchParams: sp } = new URL(req.url)
+  const status = sp.get('status')
   let query = supabase
     .from('quotes')
     .select('*, client:clients(id,name,phone,email)')
@@ -14,8 +29,7 @@ export const GET = withAuth(async (req, userId) => {
   if (status) query = query.eq('status', status)
   const { data, error } = await query
   if (error) return err(error.message, 500)
-  const quotes = (data || []).map((q: any) => ({ ...q, total: q.total_amount }))
-  return ok({ quotes })
+  return ok({ quotes: (data || []).map((q: any) => ({ ...q, total: q.total_amount })) })
 })
 
 export const POST = withAuth(async (req, userId) => {
@@ -26,7 +40,6 @@ export const POST = withAuth(async (req, userId) => {
   const subtotal = (items || []).reduce((s: number, i: any) => s + i.quantity * i.price, 0)
   const total_amount = Math.round(subtotal * (1 - discount_percent / 100) * 100) / 100
 
-  // Generate quote number SP-YYYY-NNN
   const year = new Date().getFullYear()
   const { count } = await supabase
     .from('quotes')
@@ -34,37 +47,29 @@ export const POST = withAuth(async (req, userId) => {
     .eq('user_id', userId)
   const quote_number = `SP-${year}-${String((count || 0) + 1).padStart(3, '0')}`
 
+  const { v4: uuidv4 } = await import('uuid')
   const insertData: Record<string, any> = {
-    user_id: userId,
-    client_id,
-    status: 'nacrt',
-    total_amount,
-    tracking_token: uuidv4(),
-    quote_number,
+    user_id: userId, client_id, status: 'nacrt',
+    total_amount, tracking_token: uuidv4(), quote_number,
   }
   if (note) insertData.note = note
   if (valid_until) insertData.valid_until = valid_until
   if (discount_percent) insertData.discount_percent = discount_percent
 
-  const { data: quote, error } = await supabase
-    .from('quotes')
-    .insert(insertData)
-    .select()
-    .single()
+  const { data: quote, error } = await supabase.from('quotes').insert(insertData).select().single()
   if (error) return err(error.message, 500)
 
   if (items?.length) {
-    const { error: itemsError } = await supabase.from('quote_items').insert(
+    const { error: ie } = await supabase.from('quote_items').insert(
       items.map((i: any) => ({
         quote_id: quote.id,
-        name: i.name,
-        unit: i.unit,
-        quantity: i.quantity,
-        price: i.price,
+        name: i.name, unit: i.unit,
+        quantity: i.quantity, price: i.price,
         total: i.quantity * i.price,
+        category: i.category || 'ostalo',
       }))
     )
-    if (itemsError) return err(itemsError.message, 500)
+    if (ie) return err(ie.message, 500)
   }
 
   return ok({ quote: { ...quote, total: total_amount } }, 201)
