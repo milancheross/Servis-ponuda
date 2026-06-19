@@ -19,30 +19,43 @@ export const GET = withAuth(async (req, userId) => {
 
 export const POST = withAuth(async (req, userId) => {
   const body = await req.json()
-  const { items, ...quoteData } = body
+  const { items, discount_percent = 0, note, valid_until, client_id } = body
+  if (!client_id) return err('Klijent je obavezan')
   const subtotal = (items || []).reduce((s: number, i: any) => s + i.quantity * i.price, 0)
-  const discount_amount = subtotal * ((quoteData.discount_percent || 0) / 100)
-  const total = subtotal - discount_amount
+  const total = subtotal * (1 - discount_percent / 100)
+
+  const insertData: Record<string, any> = {
+    user_id: userId,
+    client_id,
+    status: 'nacrt',
+    total_amount: total,
+    total,
+    tracking_token: uuidv4(),
+  }
+  if (note) insertData.note = note
+  if (valid_until) insertData.valid_until = valid_until
+  if (discount_percent) insertData.discount_percent = discount_percent
+
   const { data: quote, error } = await supabase
     .from('quotes')
-    .insert({
-      ...quoteData,
-      user_id: userId,
-      subtotal,
-      discount_amount,
-      total_amount: total,
-      total,
-      status: 'nacrt',
-      tracking_token: uuidv4(),
-    })
+    .insert(insertData)
     .select()
     .single()
   if (error) return err(error.message, 500)
+
   if (items?.length) {
     const { error: itemsError } = await supabase.from('quote_items').insert(
-      items.map((i: any) => ({ ...i, quote_id: quote.id, total: i.quantity * i.price }))
+      items.map((i: any) => ({
+        quote_id: quote.id,
+        name: i.name,
+        unit: i.unit,
+        quantity: i.quantity,
+        price: i.price,
+        total: i.quantity * i.price,
+      }))
     )
     if (itemsError) return err(itemsError.message, 500)
   }
+
   return ok({ quote }, 201)
 })
