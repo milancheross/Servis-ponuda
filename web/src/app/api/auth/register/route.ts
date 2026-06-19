@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    const token = signToken(user.id)
+    const token = await signToken(user.id)
     const res = NextResponse.json({ user }, { status: 201 })
     res.cookies.set('sp_token', token, {
       httpOnly: true,

@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { password_hash: _, ...safeUser } = user
-    const token = signToken(user.id)
+    const token = await signToken(user.id)
 
     const res = NextResponse.json({ user: safeUser })
     res.cookies.set('sp_token', token, {

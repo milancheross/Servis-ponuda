@@ -3,7 +3,7 @@ import { verifyToken } from '@/lib/auth'
 
 const PUBLIC_PATHS = ['/login', '/register', '/q/']
 
-export function middleware(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
   if (
@@ -16,7 +16,7 @@ export function middleware(req: NextRequest) {
   }
 
   const token = req.cookies.get('sp_token')?.value
-  const valid = token ? verifyToken(token) : null
+  const valid = token ? await verifyToken(token) : null
 
   if (!valid) {
     return NextResponse.redirect(new URL('/login', req.url))

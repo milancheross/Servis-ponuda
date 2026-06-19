@@ -1,15 +1,19 @@
-import jwt from 'jsonwebtoken'
+import { SignJWT, jwtVerify } from 'jose'
 import bcrypt from 'bcryptjs'
 
-const JWT_SECRET = process.env.JWT_SECRET!
+const getSecret = () => new TextEncoder().encode(process.env.JWT_SECRET!)
 
-export function signToken(userId: string): string {
-  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '30d' })
+export async function signToken(userId: string): Promise<string> {
+  return new SignJWT({ userId })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setExpirationTime('30d')
+    .sign(getSecret())
 }
 
-export function verifyToken(token: string): { userId: string } | null {
+export async function verifyToken(token: string): Promise<{ userId: string } | null> {
   try {
-    return jwt.verify(token, JWT_SECRET) as { userId: string }
+    const { payload } = await jwtVerify(token, getSecret())
+    return { userId: payload.userId as string }
   } catch {
     return null
   }
