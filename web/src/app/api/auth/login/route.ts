@@ -25,7 +25,17 @@ export async function POST(req: NextRequest) {
     }
 
     const { password_hash: _, ...safeUser } = user
-    return NextResponse.json({ token: signToken(user.id), user: safeUser })
+    const token = signToken(user.id)
+
+    const res = NextResponse.json({ user: safeUser })
+    res.cookies.set('sp_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 30,
+      path: '/',
+    })
+    return res
   } catch (e: any) {
     console.error('[login]', e)
     return NextResponse.json({ error: e?.message || 'Server error' }, { status: 500 })

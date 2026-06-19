@@ -20,14 +20,12 @@ export const PUT = withAuth(async (req, userId) => {
   for (const key of allowed) {
     if (key in body) updates[key] = body[key]
   }
-
   const { data, error } = await supabase
     .from('users')
     .update(updates)
     .eq('id', userId)
     .select('id, email, company_name, phone, address, pib, logo_url, created_at')
     .single()
-
   if (error) return err(error.message, 500)
   return ok({ user: data })
 })

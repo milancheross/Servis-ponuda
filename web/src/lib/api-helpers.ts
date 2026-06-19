@@ -6,11 +6,15 @@ type Handler = (req: NextRequest, userId: string, ctx: { params: Record<string, 
 export function withAuth(handler: Handler) {
   return async (req: NextRequest, ctx: { params: Record<string, string> }) => {
     try {
-      const authHeader = req.headers.get('authorization')
-      if (!authHeader?.startsWith('Bearer ')) {
+      // Try cookie first, then Authorization header (for flexibility)
+      const cookieToken = req.cookies.get('sp_token')?.value
+      const headerToken = req.headers.get('authorization')?.replace('Bearer ', '')
+      const token = cookieToken || headerToken
+
+      if (!token) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
       }
-      const payload = verifyToken(authHeader.slice(7))
+      const payload = verifyToken(token)
       if (!payload) {
         return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
       }
