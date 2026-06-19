@@ -17,6 +17,8 @@ export const POST = withAuth(async (_req, userId, { params }) => {
     .eq('user_id', userId)
   const invoiceNumber = `${year}-${String((count || 0) + 1).padStart(4, '0')}`
 
+  const issuedDate = new Date().toISOString().split('T')[0] // date type expects YYYY-MM-DD
+
   const { data: invoice, error: iErr } = await supabase
     .from('invoices')
     .insert({
@@ -26,26 +28,15 @@ export const POST = withAuth(async (_req, userId, { params }) => {
       invoice_number: invoiceNumber,
       status: 'neplaceno',
       total_amount: quote.total_amount,
-      issued_at: new Date().toISOString(),
+      issued_at: issuedDate,
     })
     .select()
     .single()
   if (iErr) return err(iErr.message, 500)
 
-  if (quote.items?.length) {
-    await supabase.from('quote_items').insert(
-      quote.items.map((i: any) => ({
-        invoice_id: invoice.id,
-        name: i.name,
-        unit: i.unit,
-        quantity: i.quantity,
-        price: i.price,
-        total: i.total,
-      }))
-    )
-  }
+  // items stay in quote_items linked via quote_id — no invoice_id column exists
 
   await supabase.from('quotes').update({ status: 'prihvacena' }).eq('id', quote.id)
 
-  return ok({ invoice }, 201)
+  return ok({ invoice: { ...invoice, total: invoice.total_amount } }, 201)
 })

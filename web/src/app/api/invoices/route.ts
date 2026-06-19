@@ -13,5 +13,6 @@ export const GET = withAuth(async (req, userId) => {
   if (status) query = query.eq('status', status)
   const { data, error } = await query
   if (error) return err(error.message, 500)
-  return ok({ invoices: data })
+  const invoices = (data || []).map((i: any) => ({ ...i, total: i.total_amount }))
+  return ok({ invoices })
 })

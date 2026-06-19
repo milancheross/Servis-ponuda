@@ -1,5 +1,4 @@
-import { NextRequest } from 'next/server'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
 export async function GET(_req: NextRequest, { params }: { params: { token: string } }) {
@@ -8,13 +7,13 @@ export async function GET(_req: NextRequest, { params }: { params: { token: stri
     .select('*, client:clients(id,name,phone,email,address), items:quote_items(*)')
     .eq('tracking_token', params.token)
     .single()
-  if (error || !data) return NextResponse.json({ error: 'Nije pronađeno' }, { status: 404 })
+  if (error || !data) return NextResponse.json({ error: 'Nije pronadjeno' }, { status: 404 })
   await supabase.from('quotes').update({ opened_at: new Date().toISOString() }).eq('id', data.id).is('opened_at', null)
-  return NextResponse.json({ quote: data })
+  return NextResponse.json({ quote: { ...data, total: data.total_amount } })
 }
 
-export async function POST(_req: NextRequest, { params }: { params: { token: string } }) {
-  const { action } = await _req.json()
+export async function POST(req: NextRequest, { params }: { params: { token: string } }) {
+  const { action } = await req.json()
   const status = action === 'accept' ? 'prihvacena' : 'odbijena'
   const { data, error } = await supabase
     .from('quotes')
