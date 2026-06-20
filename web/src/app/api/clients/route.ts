@@ -21,6 +21,8 @@ export const POST = withAuth(async (req, userId) => {
     company_name, contact_person, tax_id, registration_number,
     billing_address, job_site_address,
     legal_form = 'unknown', vat_status = 'unknown', entrepreneur_tax_mode = 'unknown',
+    billing_notes, payment_terms = 'unknown', payment_terms_note,
+    invoice_preference = 'unknown', preferred_price_display_mode = 'unknown',
   } = body
 
   if (!name) return err('Ime / naziv firme je obavezno')
@@ -32,6 +34,11 @@ export const POST = withAuth(async (req, userId) => {
     phone: phone || null,
     email: email || null,
     notes: notes || null,
+    billing_notes: billing_notes || null,
+    payment_terms,
+    payment_terms_note: payment_terms_note || null,
+    invoice_preference,
+    preferred_price_display_mode,
   }
 
   if (client_type === 'person') {

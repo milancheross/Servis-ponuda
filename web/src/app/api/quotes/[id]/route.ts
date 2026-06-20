@@ -7,7 +7,7 @@ export const GET = withAuth(async (_req, userId, ctx) => {
   const { id } = ctx.params
   const { data: quote, error } = await supabase
     .from('quotes')
-    .select('*, client:clients(id, name, phone, email, address)')
+    .select('*, client:clients(id, name, company_name, client_type, phone, email, address, billing_address, contact_person, tax_id, payment_terms, payment_terms_note, billing_notes, invoice_preference, preferred_price_display_mode)')
     .eq('id', id)
     .eq('user_id', userId)
     .single()
@@ -25,7 +25,11 @@ export const GET = withAuth(async (_req, userId, ctx) => {
 export const PUT = withAuth(async (req, userId, ctx) => {
   const { id } = ctx.params
   const body = await req.json()
-  const allowed = ['status', 'note', 'valid_until', 'discount_percent', 'total_amount', 'sent_at', 'opened_at', 'signed_by', 'signed_at', 'signed_ip', 'signature_data']
+  const allowed = [
+    'status', 'note', 'valid_until', 'discount_percent', 'total_amount',
+    'sent_at', 'opened_at', 'signed_by', 'signed_at', 'signed_ip', 'signature_data',
+    'price_display_mode', 'payment_terms', 'payment_terms_note', 'billing_notes_snapshot',
+  ]
   const updates: Record<string, any> = {}
   for (const key of allowed) {
     if (key in body) updates[key] = body[key]

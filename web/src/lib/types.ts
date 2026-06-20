@@ -5,6 +5,9 @@ export type ClientType = 'person' | 'business'
 export type LegalForm = 'doo' | 'entrepreneur' | 'other' | 'unknown'
 export type VatStatus = 'in_vat' | 'out_of_vat' | 'unknown'
 export type EntrepreneurTaxMode = 'lump_sum' | 'books' | 'unknown'
+export type PaymentTerms = 'immediately' | 'advance' | '7_days' | '15_days' | '30_days' | 'custom' | 'unknown'
+export type InvoicePreference = 'simple_consumer' | 'business_invoice' | 'unknown'
+export type PriceDisplayMode = 'total_only' | 'subtotal_vat_total' | 'unknown'
 
 export interface User {
   id: string
@@ -37,6 +40,12 @@ export interface Client {
   legal_form?: LegalForm
   vat_status?: VatStatus
   entrepreneur_tax_mode?: EntrepreneurTaxMode
+  // Billing / commercial preferences
+  billing_notes?: string
+  payment_terms?: PaymentTerms
+  payment_terms_note?: string
+  invoice_preference?: InvoicePreference
+  preferred_price_display_mode?: PriceDisplayMode
   created_at: string
 }
 
@@ -79,6 +88,10 @@ export interface Quote {
   signature_data?: string
   note?: string
   valid_until?: string
+  price_display_mode?: 'total_only' | 'subtotal_vat_total'
+  payment_terms?: PaymentTerms
+  payment_terms_note?: string
+  billing_notes_snapshot?: string
   items?: QuoteItem[]
   created_at: string
 }

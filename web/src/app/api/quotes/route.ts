@@ -7,7 +7,7 @@ export const runtime = 'nodejs'
 export const GET = withAuth(async (_req, userId) => {
   const { data, error } = await supabase
     .from('quotes')
-    .select('*, client:clients(id, name, phone, email)')
+    .select('*, client:clients(id, name, company_name, client_type, phone, email)')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
   if (error) return err(error.message, 500)
@@ -17,7 +17,13 @@ export const GET = withAuth(async (_req, userId) => {
 
 export const POST = withAuth(async (req, userId) => {
   const body = await req.json()
-  const { client_id, items = [], note, valid_until, discount_percent = 0 } = body
+  const {
+    client_id, items = [], note, valid_until, discount_percent = 0,
+    price_display_mode = 'total_only',
+    payment_terms = 'unknown',
+    payment_terms_note,
+    billing_notes_snapshot,
+  } = body
 
   if (!client_id) return err('Klijent je obavezan')
   if (!items.length) return err('Dodajte bar jednu stavku')
@@ -43,6 +49,10 @@ export const POST = withAuth(async (req, userId) => {
       note,
       valid_until,
       discount_percent,
+      price_display_mode,
+      payment_terms,
+      payment_terms_note: payment_terms_note || null,
+      billing_notes_snapshot: billing_notes_snapshot || null,
     })
     .select()
     .single()
