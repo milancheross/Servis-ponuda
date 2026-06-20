@@ -12,9 +12,26 @@ export const POST = withAuth(async (_req, userId, ctx) => {
     .eq('id', id)
     .eq('user_id', userId)
     .single()
-  if (qErr) return err(qErr.message, 404)
+  if (qErr) return err('Ponuda nije pronađena', 404)
 
-  const { count } = await supabase.from('invoices').select('id', { count: 'exact', head: true }).eq('user_id', userId)
+  // Only sent or accepted quotes can be converted
+  if (!['poslata', 'prihvacena'].includes(quote.status)) {
+    return err('Samo poslata ili prihvaćena ponuda može biti konvertovana u fakturu', 422)
+  }
+
+  // Prevent duplicate invoices for the same quote
+  const { count: existingCount } = await supabase
+    .from('invoices')
+    .select('id', { count: 'exact', head: true })
+    .eq('quote_id', id)
+  if (existingCount && existingCount > 0) {
+    return err('Faktura za ovu ponudu već postoji', 409)
+  }
+
+  const { count } = await supabase
+    .from('invoices')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
   const year = new Date().getFullYear()
   const num = String((count || 0) + 1).padStart(3, '0')
   const invoice_number = `FA-${year}-${num}`

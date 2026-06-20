@@ -1,13 +1,24 @@
 export const runtime = 'nodejs'
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-import { comparePassword, signToken } from '@/lib/auth'
+import { comparePassword, signToken, checkRateLimit, isValidEmail } from '@/lib/auth'
 
 export async function POST(req: NextRequest) {
   try {
     const { email, password } = await req.json()
     if (!email || !password) {
       return NextResponse.json({ error: 'Email i lozinka su obavezni' }, { status: 400 })
+    }
+
+    if (!isValidEmail(email)) {
+      return NextResponse.json({ error: 'Nevalidan format emaila' }, { status: 400 })
+    }
+
+    // Rate limit: 5 attempts per minute per email
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || 'unknown'
+    const key = `login:${email.toLowerCase()}:${ip}`
+    if (!checkRateLimit(key, 5, 60_000)) {
+      return NextResponse.json({ error: 'Previše pokušaja. Sačekajte minut pa pokušajte ponovo.' }, { status: 429 })
     }
 
     const { data: user, error } = await supabase
@@ -28,17 +39,17 @@ export async function POST(req: NextRequest) {
     const { password_hash: _, ...safeUser } = user
     const token = await signToken(user.id)
 
-    const res = NextResponse.json({ user: safeUser })
+    // Return token in body for mobile clients; also set httpOnly cookie for web
+    const res = NextResponse.json({ user: safeUser, token })
     res.cookies.set('sp_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30,
+      maxAge: 60 * 60 * 24 * 7,
       path: '/',
     })
     return res
   } catch (e: any) {
-    console.error('[login]', e)
-    return NextResponse.json({ error: e?.message || 'Server error' }, { status: 500 })
+    return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }

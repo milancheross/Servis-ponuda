@@ -6,7 +6,7 @@ const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET!)
 export async function signToken(userId: string): Promise<string> {
   return new SignJWT({ userId })
     .setProtectedHeader({ alg: 'HS256' })
-    .setExpirationTime('30d')
+    .setExpirationTime('7d')
     .sign(JWT_SECRET)
 }
 
@@ -25,4 +25,25 @@ export async function hashPassword(password: string): Promise<string> {
 
 export async function comparePassword(plain: string, hash: string): Promise<boolean> {
   return bcrypt.compare(plain, hash)
+}
+
+// Simple in-memory rate limiter (per serverless instance — best-effort)
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
+
+export function checkRateLimit(key: string, max = 5, windowMs = 60_000): boolean {
+  const now = Date.now()
+  const entry = rateLimitMap.get(key)
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(key, { count: 1, resetAt: now + windowMs })
+    return true
+  }
+  if (entry.count >= max) return false
+  entry.count++
+  return true
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+export function isValidEmail(email: string): boolean {
+  return EMAIL_RE.test(email)
 }

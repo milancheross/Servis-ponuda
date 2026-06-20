@@ -17,10 +17,15 @@ export const GET = withAuth(async (_req, userId) => {
 
 export const POST = withAuth(async (req, userId) => {
   const { name, unit, price, category } = await req.json()
-  if (!name || !unit || price == null) return err('Naziv, jedinica i cena su obavezni')
+  if (!name || typeof name !== 'string' || name.trim().length === 0) return err('Naziv je obavezan')
+  if (!unit || typeof unit !== 'string') return err('Jedinica mere je obavezna')
+  if (name.length > 500) return err('Naziv je predugačak (max 500 karaktera)')
+  if (typeof price !== 'number' || price < 0 || !isFinite(price)) return err('Cena mora biti pozitivan broj')
+  if (price > 100_000_000) return err('Cena je prevelika')
+
   const { data, error } = await supabase
     .from('price_items')
-    .insert({ user_id: userId, name, unit, price, category: category || 'ostalo', is_active: true })
+    .insert({ user_id: userId, name: name.trim(), unit: unit.trim(), price, category: category || 'ostalo', is_active: true })
     .select()
     .single()
   if (error) return err(error.message, 500)

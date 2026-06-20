@@ -1,14 +1,20 @@
 import { supabase } from '@/lib/supabase'
 import { withAuth, ok, err } from '@/lib/api-helpers'
+import { isValidEmail } from '@/lib/auth'
 
 export const runtime = 'nodejs'
 
-export const GET = withAuth(async (_req, userId) => {
+export const GET = withAuth(async (req, userId) => {
+  const url = new URL(req.url)
+  const limit = Math.min(parseInt(url.searchParams.get('limit') || '200'), 500)
+  const offset = parseInt(url.searchParams.get('offset') || '0')
+
   const { data, error } = await supabase
     .from('clients')
     .select('*')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
   if (error) return err(error.message, 500)
   return ok(data)
 })
@@ -25,12 +31,16 @@ export const POST = withAuth(async (req, userId) => {
     invoice_preference = 'unknown', preferred_price_display_mode = 'unknown',
   } = body
 
-  if (!name) return err('Ime / naziv firme je obavezno')
+  if (!name || typeof name !== 'string' || name.trim().length === 0) {
+    return err('Ime / naziv firme je obavezno')
+  }
+  if (name.length > 500) return err('Naziv je predugačak (max 500 karaktera)')
+  if (email && !isValidEmail(email)) return err('Nevalidan format emaila')
 
   const payload: Record<string, unknown> = {
     user_id: userId,
     client_type,
-    name,
+    name: name.trim(),
     phone: phone || null,
     email: email || null,
     notes: notes || null,
@@ -55,11 +65,7 @@ export const POST = withAuth(async (req, userId) => {
     payload.entrepreneur_tax_mode = entrepreneur_tax_mode
   }
 
-  const { data, error } = await supabase
-    .from('clients')
-    .insert(payload)
-    .select()
-    .single()
+  const { data, error } = await supabase.from('clients').insert(payload).select().single()
   if (error) return err(error.message, 500)
   return ok(data, 201)
 })
