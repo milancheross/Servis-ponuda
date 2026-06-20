@@ -7,6 +7,7 @@ import {
   LEGAL_FORM_LABELS, VAT_STATUS_LABELS, ENTREPRENEUR_TAX_MODE_LABELS,
   PAYMENT_TERMS_LABELS, INVOICE_PREFERENCE_LABELS, PRICE_DISPLAY_MODE_LABELS,
 } from '@/lib/client-utils'
+import { useToast } from '@/components/Toast'
 
 type ClientType = 'person' | 'business'
 
@@ -59,6 +60,7 @@ export default function ClientDetailPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [addingAct, setAddingAct] = useState(false)
+  const { toast } = useToast()
 
   function initFormFromClient(c: any) {
     const type: ClientType = c.client_type === 'business' ? 'business' : 'person'
@@ -133,7 +135,8 @@ export default function ClientDetailPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
-    if (res.ok) { const c = await res.json(); setClient(c); initFormFromClient(c); setEditing(false) }
+    if (res.ok) { const c = await res.json(); setClient(c); initFormFromClient(c); setEditing(false); toast('Klijent sačuvan') }
+    else toast('Greška pri čuvanju', 'error')
     setSaving(false)
   }
 
@@ -147,7 +150,8 @@ export default function ClientDetailPage() {
       const a = await res.json()
       setActivities(prev => [a, ...prev])
       setActForm({ type: 'poziv', note: '', activity_date: new Date().toISOString().split('T')[0] })
-    }
+      toast('Aktivnost dodana')
+    } else toast('Greška', 'error')
     setAddingAct(false)
   }
 
