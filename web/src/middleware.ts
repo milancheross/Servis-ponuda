@@ -7,6 +7,9 @@ const PUBLIC_PATHS = ['/login', '/register', '/q/']
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
+  // Landing page is public
+  if (pathname === '/') return NextResponse.next()
+
   if (
     pathname.startsWith('/api/') ||
     pathname.startsWith('/_next/') ||

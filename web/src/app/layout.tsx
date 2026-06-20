@@ -3,8 +3,11 @@ import './globals.css'
 import { AuthProvider } from '@/components/AuthProvider'
 
 export const metadata: Metadata = {
-  title: 'Servis Ponuda',
-  description: 'Profesionalne ponude i fakture za servisere i zanatlije',
+  title: {
+    default: 'Servis Ponuda — Ponude i fakture za majstore',
+    template: '%s | Servis Ponuda',
+  },
+  description: 'Profesionalne ponude i fakture za servisere i zanatlije. Radi sa telefona.',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
