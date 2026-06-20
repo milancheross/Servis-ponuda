@@ -9,6 +9,76 @@ const CATEGORY_LABELS: Record<string, string> = { rad: '🔧 Rad', materijal: '�
 
 interface Item { name: string; unit: string; price: number; quantity: number; category: string }
 
+function BillingSection({
+  priceDisplayMode, setPriceDisplayMode,
+  paymentTerms, setPaymentTerms,
+  paymentTermsNote, setPaymentTermsNote,
+  billingNotesSnapshot,
+}: {
+  priceDisplayMode: string; setPriceDisplayMode: (v: string) => void
+  paymentTerms: string; setPaymentTerms: (v: string) => void
+  paymentTermsNote: string; setPaymentTermsNote: (v: string) => void
+  billingNotesSnapshot: string
+}) {
+  const [open, setOpen] = useState(false)
+  const hasValues = paymentTerms !== 'unknown' || paymentTermsNote || billingNotesSnapshot || priceDisplayMode !== 'total_only'
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 py-3 text-left"
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Plaćanje i prikaz cene</span>
+          {hasValues && <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full font-medium">podešeno</span>}
+        </div>
+        <span className="text-gray-400 text-sm">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className="px-4 pb-4 space-y-3 border-t border-gray-100">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Prikaz cene na ponudi</label>
+            <select value={priceDisplayMode} onChange={e => setPriceDisplayMode(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]">
+              <option value="total_only">Samo ukupna cena</option>
+              <option value="subtotal_vat_total">Osnovica + PDV + ukupno</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Rok / uslovi plaćanja</label>
+            <select value={paymentTerms} onChange={e => setPaymentTerms(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]">
+              <option value="unknown">Nije definisano</option>
+              <option value="immediately">Odmah</option>
+              <option value="advance">Avansno</option>
+              <option value="7_days">7 dana</option>
+              <option value="15_days">15 dana</option>
+              <option value="30_days">30 dana</option>
+              <option value="custom">Po dogovoru</option>
+            </select>
+          </div>
+          {(paymentTerms === 'custom' || paymentTermsNote) && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Napomena za plaćanje</label>
+              <input value={paymentTermsNote} onChange={e => setPaymentTermsNote(e.target.value)}
+                placeholder="npr. 50% avans, ostatak po završetku"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]" />
+            </div>
+          )}
+          {billingNotesSnapshot && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
+              <div className="text-xs font-bold uppercase text-yellow-600 mb-0.5">Napomena za fakturisanje (iz klijenta)</div>
+              {billingNotesSnapshot}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function NewQuoteContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -26,7 +96,6 @@ function NewQuoteContent() {
   const [showManual, setShowManual] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  // Quote billing/display prefs (prefilled from client)
   const [priceDisplayMode, setPriceDisplayMode] = useState('total_only')
   const [paymentTerms, setPaymentTerms] = useState('unknown')
   const [paymentTermsNote, setPaymentTermsNote] = useState('')
@@ -321,44 +390,12 @@ function NewQuoteContent() {
               )}
             </div>
 
-            <div className="bg-white rounded-xl p-4 border border-gray-100 space-y-3">
-              <div className="text-xs font-bold text-gray-400 uppercase tracking-wider pb-1 border-b border-gray-100">Plaćanje i prikaz cene</div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Prikaz cene na ponudi</label>
-                <select value={priceDisplayMode} onChange={e => setPriceDisplayMode(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]">
-                  <option value="total_only">Samo ukupna cena</option>
-                  <option value="subtotal_vat_total">Osnovica + PDV + ukupno</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Rok / uslovi plaćanja</label>
-                <select value={paymentTerms} onChange={e => setPaymentTerms(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]">
-                  <option value="unknown">Nije definisano</option>
-                  <option value="immediately">Odmah</option>
-                  <option value="advance">Avansno</option>
-                  <option value="7_days">7 dana</option>
-                  <option value="15_days">15 dana</option>
-                  <option value="30_days">30 dana</option>
-                  <option value="custom">Po dogovoru</option>
-                </select>
-              </div>
-              {(paymentTerms === 'custom' || paymentTermsNote) && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Napomena za plaćanje</label>
-                  <input value={paymentTermsNote} onChange={e => setPaymentTermsNote(e.target.value)}
-                    placeholder="npr. 50% avans, ostatak po završetku"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-[#1e3a8a]" />
-                </div>
-              )}
-              {billingNotesSnapshot && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
-                  <div className="text-xs font-bold uppercase text-yellow-600 mb-0.5">Napomena za fakturisanje (iz klijenta)</div>
-                  {billingNotesSnapshot}
-                </div>
-              )}
-            </div>
+            <BillingSection
+              priceDisplayMode={priceDisplayMode} setPriceDisplayMode={setPriceDisplayMode}
+              paymentTerms={paymentTerms} setPaymentTerms={setPaymentTerms}
+              paymentTermsNote={paymentTermsNote} setPaymentTermsNote={setPaymentTermsNote}
+              billingNotesSnapshot={billingNotesSnapshot}
+            />
           </div>
         )}
       </div>

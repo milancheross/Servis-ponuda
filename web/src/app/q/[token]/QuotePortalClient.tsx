@@ -208,7 +208,7 @@ export default function QuotePortalClient({ token, quote, items, company }: Prop
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Potpis (ako prihvatate)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Potpis (obavezan za prihvatanje)</label>
               <div className="border-2 border-gray-300 rounded-xl overflow-hidden bg-white relative">
                 <canvas
                   ref={canvasRef}
@@ -246,13 +246,17 @@ export default function QuotePortalClient({ token, quote, items, company }: Prop
               </button>
               <button
                 onClick={() => respond('prihvacena')}
-                disabled={submitting || !signedBy.trim()}
+                disabled={submitting || !signedBy.trim() || !hasSig}
                 className="flex-2 flex-[2] bg-[#1e3a8a] text-white py-3.5 rounded-xl font-semibold text-base disabled:opacity-40"
               >
                 {submitting ? 'Slanje...' : '✓ Prihvati ponudu'}
               </button>
             </div>
-            {!signedBy.trim() && <p className="text-xs text-gray-400 text-center mt-2">Unesite ime da biste prihvatili</p>}
+            {(!signedBy.trim() || !hasSig) && (
+              <p className="text-xs text-gray-400 text-center mt-2">
+                {!signedBy.trim() ? 'Unesite ime' : 'Dodajte potpis'} da biste prihvatili
+              </p>
+            )}
           </div>
         )}
       </div>

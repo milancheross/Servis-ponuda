@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import StatusBadge from '@/components/StatusBadge'
 import { clientDisplayName, PAYMENT_TERMS_LABELS, PRICE_DISPLAY_MODE_LABELS } from '@/lib/client-utils'
+import { useToast } from '@/components/Toast'
 
 function fmt(n: number) { return (n || 0).toLocaleString('sr-RS') + ' RSD' }
 
@@ -24,6 +25,7 @@ export default function QuoteDetailPage() {
   const [sending, setSending] = useState(false)
   const [converting, setConverting] = useState(false)
   const [saving, setSaving] = useState(false)
+  const { toast } = useToast()
 
   useEffect(() => {
     fetch(`/api/quotes/${id}`).then(r => r.json()).then(q => {
@@ -47,6 +49,9 @@ export default function QuoteDetailPage() {
       const data = await res.json()
       setQuote(data)
       setTrackingUrl(data.tracking_url || '')
+      toast('Ponuda je poslata klijentu')
+    } else {
+      toast('Greška pri slanju', 'error')
     }
     setSending(false)
   }
@@ -58,7 +63,8 @@ export default function QuoteDetailPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...editForm }),
     })
-    if (res.ok) { const q = await res.json(); setQuote(q); setEditing(false) }
+    if (res.ok) { const q = await res.json(); setQuote(q); setEditing(false); toast('Sačuvano') }
+    else toast('Greška pri čuvanju', 'error')
     setSaving(false)
   }
 
@@ -68,7 +74,11 @@ export default function QuoteDetailPage() {
     if (res.ok) {
       const inv = await res.json()
       router.push(`/invoices/${inv.id}`)
-    } else setConverting(false)
+    } else {
+      const { error } = await res.json().catch(() => ({ error: 'Greška' }))
+      toast(error || 'Greška pri konverziji', 'error')
+      setConverting(false)
+    }
   }
 
   if (loading) return <div className="p-4 md:p-8"><div className="h-8 bg-gray-200 rounded w-48 animate-pulse mb-4" /><div className="h-64 bg-gray-200 rounded-xl animate-pulse" /></div>

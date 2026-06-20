@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import StatusBadge from '@/components/StatusBadge'
+import { Quote } from '@/lib/types'
 
 function fmt(n: number) {
   return (n || 0).toLocaleString('sr-RS') + ' RSD'
@@ -12,42 +13,76 @@ function daysSince(dateStr: string) {
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000)
 }
 
+interface Stats {
+  clientCount: number
+  quotesThisMonth: number
+  unpaidCount: number
+  unpaidTotal: number
+  reminders: Array<{ id: string; quote_number: string; total: number; sent_at: string; client: { name: string } | null }>
+  recentQuotes: Quote[]
+}
+
+function OnboardingChecklist({ stats }: { stats: Stats }) {
+  const hasClients = stats.clientCount > 0
+  const hasQuote = stats.quotesThisMonth > 0 || stats.recentQuotes.length > 0
+
+  if (hasClients && hasQuote) return null
+
+  return (
+    <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 mb-6">
+      <div className="font-bold text-[#1e3a8a] mb-3">Dobrodošli! Napravite prvu ponudu za 3 koraka:</div>
+      <div className="space-y-3">
+        <div className="flex items-center gap-3">
+          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${true ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'}`}>✓</div>
+          <span className={`text-sm ${true ? 'line-through text-gray-400' : 'text-gray-700 font-medium'}`}>Kreiran nalog</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${hasClients ? 'bg-green-500 text-white' : 'bg-[#1e3a8a] text-white'}`}>
+            {hasClients ? '✓' : '2'}
+          </div>
+          {hasClients ? (
+            <span className="text-sm line-through text-gray-400">Dodat klijent</span>
+          ) : (
+            <Link href="/clients/new" className="text-sm font-semibold text-[#1e3a8a] underline underline-offset-2">
+              Dodaj prvog klijenta →
+            </Link>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${hasQuote ? 'bg-green-500 text-white' : hasClients ? 'bg-[#1e3a8a] text-white' : 'bg-gray-200 text-gray-500'}`}>
+            {hasQuote ? '✓' : '3'}
+          </div>
+          {hasQuote ? (
+            <span className="text-sm line-through text-gray-400">Kreirana ponuda</span>
+          ) : hasClients ? (
+            <Link href="/quotes/new" className="text-sm font-semibold text-[#1e3a8a] underline underline-offset-2">
+              Napravi prvu ponudu →
+            </Link>
+          ) : (
+            <span className="text-sm text-gray-400">Napravi prvu ponudu</span>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function DashboardPage() {
-  const [stats, setStats] = useState({ clients: 0, quotesThisMonth: 0, unpaidTotal: 0, unpaidCount: 0 })
-  const [recentQuotes, setRecentQuotes] = useState<any[]>([])
-  const [reminders, setReminders] = useState<any[]>([])
+  const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
   const [companyName, setCompanyName] = useState('')
 
   useEffect(() => {
     async function load() {
-      const [profileRes, clientsRes, quotesRes, invoicesRes] = await Promise.all([
+      const [profileRes, statsRes] = await Promise.all([
         fetch('/api/auth/profile'),
-        fetch('/api/clients'),
-        fetch('/api/quotes'),
-        fetch('/api/invoices'),
+        fetch('/api/dashboard/stats'),
       ])
       const profile = profileRes.ok ? await profileRes.json() : null
-      const clients = clientsRes.ok ? await clientsRes.json() : []
-      const quotes = quotesRes.ok ? await quotesRes.json() : []
-      const invoices = invoicesRes.ok ? await invoicesRes.json() : []
+      const statsData = statsRes.ok ? await statsRes.json() : null
 
       if (profile?.user) setCompanyName(profile.user.company_name || '')
-
-      const thisMonth = new Date()
-      thisMonth.setDate(1)
-      thisMonth.setHours(0, 0, 0, 0)
-
-      const quotesThisMonth = quotes.filter((q: any) => new Date(q.created_at) >= thisMonth).length
-      const unpaid = invoices.filter((inv: any) => inv.status === 'neplaceno')
-      const unpaidTotal = unpaid.reduce((s: number, inv: any) => s + (inv.total_amount || 0), 0)
-
-      setStats({ clients: clients.length, quotesThisMonth, unpaidTotal, unpaidCount: unpaid.length })
-      setRecentQuotes(quotes.slice(0, 4))
-
-      const sevenDaysAgo = new Date(Date.now() - 7 * 86400000)
-      setReminders(quotes.filter((q: any) => q.status === 'poslata' && q.sent_at && new Date(q.sent_at) < sevenDaysAgo))
-
+      if (statsData) setStats(statsData)
       setLoading(false)
     }
     load()
@@ -66,41 +101,51 @@ export default function DashboardPage() {
     )
   }
 
+  const s = stats || { clientCount: 0, quotesThisMonth: 0, unpaidCount: 0, unpaidTotal: 0, reminders: [], recentQuotes: [] }
+
   return (
     <div className="p-4 md:p-8 max-w-2xl mx-auto md:max-w-none">
-      <div className="mb-6">
-        <h1 className="text-xl md:text-2xl font-bold text-gray-900">{companyName || 'Dobrodošli'}</h1>
-        <p className="text-gray-500 text-sm mt-0.5 capitalize">{today}</p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900">{companyName || 'Dobrodošli'}</h1>
+          <p className="text-gray-500 text-sm mt-0.5 capitalize">{today}</p>
+        </div>
+        <Link href="/quotes/new"
+          className="hidden md:flex items-center gap-2 bg-[#1e3a8a] text-white px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-blue-900 transition-colors">
+          + Nova ponuda
+        </Link>
       </div>
+
+      <OnboardingChecklist stats={s} />
 
       <div className="grid grid-cols-2 gap-3 mb-6">
-        <div className="bg-[#1e3a8a] text-white rounded-xl p-4">
-          <div className="text-3xl font-bold">{stats.clients}</div>
+        <Link href="/clients" className="bg-[#1e3a8a] text-white rounded-xl p-4 hover:bg-blue-900 transition-colors">
+          <div className="text-3xl font-bold">{s.clientCount}</div>
           <div className="text-blue-200 text-sm mt-1">Klijenata ukupno</div>
-        </div>
-        <div className="bg-[#1e3a8a] text-white rounded-xl p-4">
-          <div className="text-3xl font-bold">{stats.quotesThisMonth}</div>
+        </Link>
+        <Link href="/quotes" className="bg-[#1e3a8a] text-white rounded-xl p-4 hover:bg-blue-900 transition-colors">
+          <div className="text-3xl font-bold">{s.quotesThisMonth}</div>
           <div className="text-blue-200 text-sm mt-1">Ponuda ovaj mesec</div>
-        </div>
-        <div className="bg-white rounded-xl p-4 border-2 border-orange-200">
-          <div className="text-2xl font-bold text-orange-600">{stats.unpaidCount}</div>
+        </Link>
+        <Link href="/invoices" className="bg-white rounded-xl p-4 border-2 border-orange-200 hover:border-orange-400 transition-colors">
+          <div className="text-2xl font-bold text-orange-600">{s.unpaidCount}</div>
           <div className="text-gray-500 text-sm mt-1">Neplaćenih faktura</div>
-        </div>
-        <div className="bg-white rounded-xl p-4 border-2 border-orange-200">
-          <div className="text-lg font-bold text-orange-600 leading-tight">{fmt(stats.unpaidTotal)}</div>
+        </Link>
+        <Link href="/invoices" className="bg-white rounded-xl p-4 border-2 border-orange-200 hover:border-orange-400 transition-colors">
+          <div className="text-lg font-bold text-orange-600 leading-tight">{fmt(s.unpaidTotal)}</div>
           <div className="text-gray-500 text-sm mt-1">Čeka naplatu</div>
-        </div>
+        </Link>
       </div>
 
-      {reminders.length > 0 && (
+      {s.reminders.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
-          <div className="font-semibold text-amber-800 mb-2">⏰ Podsetnici ({reminders.length})</div>
+          <div className="font-semibold text-amber-800 mb-2">⏰ Podsetnici ({s.reminders.length}) — ponude čekaju odgovor &gt;7 dana</div>
           <div className="space-y-2">
-            {reminders.map((q: any) => (
+            {s.reminders.map(q => (
               <Link key={q.id} href={`/quotes/${q.id}`} className="flex items-center justify-between bg-white rounded-lg p-3 hover:bg-amber-50 transition-colors">
                 <div>
                   <div className="font-medium text-sm text-gray-900">{q.client?.name || 'Klijent'}</div>
-                  <div className="text-xs text-gray-500">{q.quote_number}</div>
+                  <div className="text-xs text-gray-500">{q.quote_number} · {fmt(q.total)}</div>
                 </div>
                 <div className="text-amber-700 text-xs font-semibold">{daysSince(q.sent_at)} dana</div>
               </Link>
@@ -114,8 +159,8 @@ export default function DashboardPage() {
           <h2 className="font-semibold text-gray-900">Poslednje ponude</h2>
           <Link href="/quotes" className="text-[#1e3a8a] text-sm font-medium">Sve →</Link>
         </div>
-        {recentQuotes.length === 0 ? (
-          <div className="text-center py-10 text-gray-400">
+        {s.recentQuotes.length === 0 ? (
+          <div className="text-center py-10 text-gray-400 bg-white rounded-xl border border-gray-100">
             <div className="text-4xl mb-2">📋</div>
             <div>Još nema ponuda</div>
             <Link href="/quotes/new" className="mt-3 inline-block bg-[#1e3a8a] text-white px-4 py-2 rounded-lg text-sm font-medium">
@@ -124,7 +169,7 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="space-y-2">
-            {recentQuotes.map((q: any) => (
+            {s.recentQuotes.map(q => (
               <Link key={q.id} href={`/quotes/${q.id}`} className="flex items-center justify-between bg-white rounded-xl p-4 hover:shadow-sm transition-shadow border border-gray-100">
                 <div>
                   <div className="font-medium text-gray-900 text-sm">{q.client?.name || '—'}</div>
@@ -136,6 +181,12 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Mobile FAB */}
+      <Link href="/quotes/new"
+        className="md:hidden fixed bottom-20 right-4 z-30 bg-[#1e3a8a] text-white w-14 h-14 rounded-full flex items-center justify-center text-2xl shadow-lg shadow-blue-900/30">
+        +
+      </Link>
     </div>
   )
 }
