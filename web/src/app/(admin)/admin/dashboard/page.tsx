@@ -3,9 +3,9 @@ import { supabase } from '@/lib/supabase'
 
 function KpiCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
   return (
-    <div className="bg-white rounded-xl p-5 shadow-sm">
+    <div className="bg-white rounded-xl p-4 md:p-5 shadow-sm">
       <div className="text-sm text-gray-500 mb-1">{label}</div>
-      <div className="text-3xl font-bold text-gray-900">{value ?? '—'}</div>
+      <div className="text-2xl md:text-3xl font-bold text-gray-900">{value ?? '—'}</div>
       {sub && <div className="text-xs text-gray-400 mt-1">{sub}</div>}
     </div>
   )
@@ -32,9 +32,9 @@ export default async function AdminDashboard() {
   ])
 
   return (
-    <div className="p-6 max-w-5xl">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Admin Dashboard</h1>
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="p-4 md:p-6 max-w-5xl">
+      <h1 className="text-xl md:text-2xl font-bold text-gray-900 mb-6">Admin Dashboard</h1>
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
         <KpiCard label="Ukupno korisnika" value={total_users ?? 0} />
         <KpiCard label="Novi (7d)" value={new_users_7d ?? 0} />
         <KpiCard label="Aktivni (7d)" value={active_users_7d ?? 0} />

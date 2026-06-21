@@ -8,7 +8,7 @@ function Row({ label, value }: { label: string; value?: string | number | null }
   return (
     <div className="flex gap-4 py-2 border-b border-gray-100 last:border-0">
       <div className="text-sm text-gray-500 w-36 shrink-0">{label}</div>
-      <div className="text-sm text-gray-900">{value ?? '—'}</div>
+      <div className="text-sm text-gray-900 break-all">{value ?? '—'}</div>
     </div>
   )
 }
@@ -29,14 +29,14 @@ export default async function AdminUserDetailPage({ params }: { params: { id: st
   ])
 
   return (
-    <div className="p-6 max-w-3xl">
+    <div className="p-4 md:p-6 max-w-3xl">
       <div className="mb-4">
         <Link href="/admin/users" className="text-sm text-gray-500 hover:text-gray-800">← Nazad na listu</Link>
       </div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">{user.email}</h1>
+      <h1 className="text-lg md:text-2xl font-bold text-gray-900 mb-6 break-all">{user.email}</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div className="bg-white rounded-xl shadow-sm p-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div className="bg-white rounded-xl shadow-sm p-4 md:p-5">
           <div className="text-xs text-gray-400 uppercase font-bold mb-3">Info o nalogu</div>
           <Row label="Email" value={user.email} />
           <Row label="Kompanija" value={user.company_name} />
@@ -47,7 +47,7 @@ export default async function AdminUserDetailPage({ params }: { params: { id: st
           <Row label="Poslednja aktivnost" value={user.last_active_at ? new Date(user.last_active_at).toLocaleDateString('sr-RS') : null} />
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-5">
+        <div className="bg-white rounded-xl shadow-sm p-4 md:p-5">
           <div className="text-xs text-gray-400 uppercase font-bold mb-3">Plan i pretplata</div>
           <Row label="Plan" value={user.plan} />
           <Row label="Status" value={user.subscription_status} />

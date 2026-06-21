@@ -27,11 +27,11 @@ export default async function AdminAuditLogPage({ searchParams }: { searchParams
   const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE)
 
   return (
-    <div className="p-6 max-w-5xl">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Audit Log</h1>
+    <div className="p-4 md:p-6 max-w-5xl">
+      <h1 className="text-xl md:text-2xl font-bold text-gray-900 mb-6">Audit Log</h1>
 
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
+        <table className="w-full text-sm min-w-[560px]">
           <thead className="bg-gray-50 text-gray-500 uppercase text-xs">
             <tr>
               <th className="px-4 py-3 text-left">Vreme</th>
@@ -50,12 +50,12 @@ export default async function AdminAuditLogPage({ searchParams }: { searchParams
                 <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
                   {log.created_at ? new Date(log.created_at).toLocaleString('sr-RS') : '—'}
                 </td>
-                <td className="px-4 py-3 text-gray-700">{log.admin_user_id ? (emailMap[log.admin_user_id] || log.admin_user_id.slice(0, 8)) : '—'}</td>
-                <td className="px-4 py-3 text-gray-700">{log.target_user_id ? (emailMap[log.target_user_id] || log.target_user_id.slice(0, 8)) : '—'}</td>
+                <td className="px-4 py-3 text-gray-700 max-w-[140px] truncate">{log.admin_user_id ? (emailMap[log.admin_user_id] || log.admin_user_id.slice(0, 8)) : '—'}</td>
+                <td className="px-4 py-3 text-gray-700 max-w-[140px] truncate">{log.target_user_id ? (emailMap[log.target_user_id] || log.target_user_id.slice(0, 8)) : '—'}</td>
                 <td className="px-4 py-3">
-                  <span className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs font-mono">{log.action_type}</span>
+                  <span className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs font-mono whitespace-nowrap">{log.action_type}</span>
                 </td>
-                <td className="px-4 py-3 text-gray-500 text-xs font-mono max-w-xs truncate">
+                <td className="px-4 py-3 text-gray-500 text-xs font-mono max-w-[160px] truncate">
                   {log.metadata && Object.keys(log.metadata).length > 0 ? JSON.stringify(log.metadata) : '—'}
                 </td>
               </tr>
@@ -65,7 +65,7 @@ export default async function AdminAuditLogPage({ searchParams }: { searchParams
       </div>
 
       {totalPages > 1 && (
-        <div className="flex gap-2 mt-4 justify-end">
+        <div className="flex gap-2 mt-4 justify-end flex-wrap">
           {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
             <a key={p} href={`?page=${p}`}
               className={`px-3 py-1 rounded text-sm ${p === page ? 'bg-gray-900 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}>

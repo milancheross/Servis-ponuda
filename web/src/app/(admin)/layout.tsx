@@ -3,7 +3,8 @@ import Link from 'next/link'
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen bg-gray-100">
-      <aside className="w-56 bg-gray-900 text-white flex flex-col shrink-0">
+      {/* Sidebar — hidden on mobile */}
+      <aside className="hidden md:flex w-52 lg:w-56 bg-gray-900 text-white flex-col shrink-0">
         <div className="px-5 py-4 border-b border-gray-700">
           <div className="text-xs text-gray-400 uppercase tracking-widest mb-0.5">Admin</div>
           <div className="font-bold text-lg">Servis Ponuda</div>
@@ -25,7 +26,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </Link>
         </div>
       </aside>
-      <main className="flex-1 overflow-auto">{children}</main>
+
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Mobile top bar */}
+        <div className="md:hidden flex items-center gap-3 bg-gray-900 text-white px-4 h-14 shrink-0">
+          <div className="font-bold">Admin</div>
+          <div className="flex-1" />
+          <Link href="/admin/dashboard" className="text-xs text-gray-400 hover:text-white px-2 py-1">📊</Link>
+          <Link href="/admin/users" className="text-xs text-gray-400 hover:text-white px-2 py-1">👥</Link>
+          <Link href="/admin/audit-log" className="text-xs text-gray-400 hover:text-white px-2 py-1">📋</Link>
+          <Link href="/dashboard" className="text-xs text-gray-400 hover:text-white px-2 py-1">← App</Link>
+        </div>
+
+        <main className="flex-1 overflow-auto">{children}</main>
+      </div>
     </div>
   )
 }
