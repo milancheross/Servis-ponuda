@@ -33,6 +33,17 @@ export default function Sidebar() {
             </Link>
           ))}
         </nav>
+        <div className="p-2 border-t border-blue-800">
+          <button
+            onClick={async () => {
+              await fetch('/api/auth/logout', { method: 'POST' })
+              window.location.href = '/login'
+            }}
+            className="flex items-center gap-3 px-3 py-2 rounded-lg w-full text-sm font-medium text-blue-200 hover:bg-blue-800 hover:text-white transition-colors"
+          >
+            <span>🚪</span>Odjava
+          </button>
+        </div>
       </aside>
 
       {/* Mobile top bar */}
@@ -64,6 +75,17 @@ export default function Sidebar() {
                 </Link>
               ))}
             </nav>
+            <div className="p-2 border-t border-blue-800">
+              <button
+                onClick={async () => {
+                  await fetch('/api/auth/logout', { method: 'POST' })
+                  window.location.href = '/login'
+                }}
+                className="flex items-center gap-3 px-3 py-3 rounded-lg w-full text-sm font-medium text-blue-200 hover:bg-blue-800 hover:text-white transition-colors"
+              >
+                <span>🚪</span>Odjava
+              </button>
+            </div>
           </div>
         </div>
       )}
