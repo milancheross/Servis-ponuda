@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import BrandLogo from '@/components/shared/BrandLogo'
@@ -14,7 +14,15 @@ const navItems = [
 
 export default function Sidebar() {
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
   const pathname = usePathname()
+
+  useEffect(() => {
+    fetch('/api/auth/profile')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => setIsAdmin(d?.user?.role === 'admin'))
+      .catch(() => {})
+  }, [])
 
   return (
     <>
@@ -34,6 +42,12 @@ export default function Sidebar() {
           ))}
         </nav>
         <div className="p-2 border-t border-blue-800">
+          {isAdmin && (
+            <Link href="/admin/dashboard"
+              className="flex items-center gap-3 px-3 py-2 rounded-lg mb-1 text-sm font-medium text-blue-200 hover:bg-blue-800 hover:text-white transition-colors">
+              <span>⚙️</span>Admin panel
+            </Link>
+          )}
           <button
             onClick={async () => {
               await fetch('/api/auth/logout', { method: 'POST' })
@@ -76,6 +90,12 @@ export default function Sidebar() {
               ))}
             </nav>
             <div className="p-2 border-t border-blue-800">
+              {isAdmin && (
+                <Link href="/admin/dashboard" onClick={() => setDrawerOpen(false)}
+                  className="flex items-center gap-3 px-3 py-3 rounded-lg mb-1 text-sm font-medium text-blue-200 hover:bg-blue-800 hover:text-white transition-colors">
+                  <span>⚙️</span>Admin panel
+                </Link>
+              )}
               <button
                 onClick={async () => {
                   await fetch('/api/auth/logout', { method: 'POST' })

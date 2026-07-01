@@ -39,6 +39,10 @@ export async function POST(req: NextRequest) {
     const { password_hash: _, ...safeUser } = user
     const token = await signToken(user.id, user.role || 'user')
 
+    // Track activity on login (fire-and-forget)
+    supabase.from('users').update({ last_active_at: new Date().toISOString() }).eq('id', user.id)
+      .then(() => {})
+
     // Return token in body for mobile clients; also set httpOnly cookie for web
     const res = NextResponse.json({ user: safeUser, token })
     res.cookies.set('sp_token', token, {

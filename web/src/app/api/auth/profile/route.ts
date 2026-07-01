@@ -6,7 +6,7 @@ import { withAuth, ok, err } from '@/lib/api-helpers'
 export const GET = withAuth(async (_req, userId) => {
   const { data, error } = await supabase
     .from('users')
-    .select('id, email, company_name, phone, address, pib, logo_url, created_at')
+    .select('id, email, company_name, phone, address, pib, logo_url, created_at, role, plan, subscription_status, trial_ends_at')
     .eq('id', userId)
     .maybeSingle()
 
